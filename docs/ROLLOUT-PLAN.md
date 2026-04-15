@@ -76,10 +76,13 @@ Before limited active expands beyond shadow:
 - canary procedure approved
 - outage-impact cutover checklist reviewed
 
-## Stage 4 expansion rule
+## Phase 10
 
-Only consider a second query class after:
-- outage-impact canary is stable
-- source refresh health is stable
-- dashboard alerts are acceptable
-- weekly review process is established
+Production consolidation for outage-impact.
+
+Goals:
+- close the first rollout cycle
+- force an explicit decision
+- harden operations
+- document limitations
+- define ownership

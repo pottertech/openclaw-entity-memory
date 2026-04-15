@@ -23,7 +23,11 @@
     "cases:generate-real": "tsx scripts/generate-real-case-pack.ts",
     "cases:refresh-real": "tsx scripts/refresh-real-case-pack.ts",
     "refresh:scheduled": "tsx scripts/scheduled-refresh.ts",
-    "canary:alerts-history": "echo 'Use GET /v1/canary-dashboard/outage-impact/alert-history?tenant_id=tenant_default&days=14'"
+    "canary:alerts-history": "echo 'Use GET /v1/canary-dashboard/outage-impact/alert-history?tenant_id=tenant_default&days=14'",
+    "phase10:readiness": "tsx scripts/phase10-readiness-report.ts",
+    "phase10:signoff": "tsx scripts/phase10-signoff-check.ts",
+    "test:rollback-drill": "vitest run tests/integration/rollback-drill.test.ts",
+    "test:production-gate": "vitest run tests/integration/outage-impact-production-gate.test.ts"
   },
   "dependencies": {
     "express": "^4.19.2",

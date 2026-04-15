@@ -52,9 +52,11 @@ For outage-impact questions:
 4. continue shadow if safe
 5. review latest audit and dashboard data
 
-## Trend review
+## Production consolidation check
 
-At least once per review cycle:
-- check trend endpoint
-- compare same-answer rate over time
-- check whether hybrid preference is stable or drifting
+Before treating outage-impact as production-supported:
+- run readiness report
+- run signoff check
+- review known limitations
+- confirm ownership
+- confirm audit retention plan

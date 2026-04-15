@@ -49,3 +49,13 @@ Choose one:
 - remain shadow-only
 - begin limited active canary
 - block promotion and fix issues
+
+## Phase 10 exit criteria
+
+Before declaring outage-impact production-supported:
+- real source adapters in use
+- real semantic baseline in use
+- rollback proven
+- readiness report reviewed
+- signoff check passing
+- post-canary decision recorded

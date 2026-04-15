@@ -4,7 +4,8 @@ import { OpenBrainHttpEntityMemoryClient } from "../src/adapters/openbrain-http-
 import { SemanticBaselineHttpClient } from "../src/adapters/semantic-baseline-http-client.js";
 import { OpenBrainShadowRunner } from "../src/adapters/openbrain-shadow-runner.js";
 async function loadCases() {
-    const filePath = path.resolve(process.cwd(), "tests/fixtures/benchmark-cases.json");
+    const fileName = process.env.BENCHMARK_CASES_FILE ?? "tests/fixtures/benchmark-cases.json";
+    const filePath = path.resolve(process.cwd(), fileName);
     const raw = await fs.readFile(filePath, "utf8");
     return JSON.parse(raw);
 }

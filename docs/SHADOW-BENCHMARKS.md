@@ -53,3 +53,15 @@ Benchmarking should compare:
 - hybrid result
 
 A benchmark is incomplete if it measures only hybrid output without a baseline.
+
+## Expanded fixture guidance
+
+Use a broader case pack before promotion.
+
+Minimum recommended coverage:
+- outage impact
+- dependency chains
+- repo to service links
+- policy linkage
+- team ownership
+- customer exposure

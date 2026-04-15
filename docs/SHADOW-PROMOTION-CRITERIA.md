@@ -50,3 +50,12 @@ If hybrid quality regresses:
 - disable active routing for the affected class
 - continue shadow collection
 - investigate exclusions, ACL filters, and conflict winners
+
+## First promotion scope
+
+Promote only one query class first.
+
+Recommended first class:
+- outage impact reasoning
+
+Do not promote all relationship routing at once.

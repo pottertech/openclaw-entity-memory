@@ -89,3 +89,23 @@ Then for selected relationship-shaped questions:
 4. compare results
 5. log differences
 6. keep semantic path as the production answer until promotion criteria are met
+
+## First concrete integration step
+
+Use the shadow runner pattern first.
+
+For each selected question:
+- semantic answer is generated normally
+- hybrid answer is generated in parallel
+- semantic answer remains the returned answer
+- hybrid answer is logged for review
+- promotion reports are generated on a case pack
+
+Only promote by query class after thresholds are met.
+
+## Real baseline integration target
+
+The long-term semantic baseline should come from the same Open-Brain or A-RAG retrieval path used in production.
+
+Do not rely on the mock baseline past early development.
+Use the real production retrieval stack for meaningful shadow evaluation.

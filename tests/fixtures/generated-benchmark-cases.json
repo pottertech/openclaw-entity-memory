@@ -1,0 +1,40 @@
+[
+  {
+    "name": "incident-project-impact",
+    "question": "Was Alice's project affected by Tuesday's outage?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "Alice is the tech lead on Project Atlas",
+        "documentXid": "doc_1",
+        "chunkXid": "chk_1",
+        "score": 0.97
+      },
+      {
+        "text": "Project Atlas uses PostgreSQL for its primary datastore",
+        "documentXid": "doc_2",
+        "chunkXid": "chk_8",
+        "score": 0.94
+      },
+      {
+        "text": "The PostgreSQL cluster went down on Tuesday",
+        "documentXid": "doc_3",
+        "chunkXid": "chk_4",
+        "score": 0.93
+      }
+    ]
+  },
+  {
+    "name": "repo-service-dependency",
+    "question": "Does auth-repo implement Auth Service?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "auth-repo implements Auth Service",
+        "documentXid": "doc_auth_2",
+        "chunkXid": "chk_auth_9",
+        "score": 0.95
+      }
+    ]
+  }
+]

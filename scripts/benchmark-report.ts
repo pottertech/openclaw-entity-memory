@@ -16,10 +16,10 @@ type BenchmarkCase = {
 };
 
 async function loadCases(): Promise<BenchmarkCase[]> {
-  const filePath = path.resolve(
-    process.cwd(),
-    "tests/fixtures/benchmark-cases.json",
-  );
+  const fileName =
+    process.env.BENCHMARK_CASES_FILE ?? "tests/fixtures/benchmark-cases.json";
+
+  const filePath = path.resolve(process.cwd(), fileName);
   const raw = await fs.readFile(filePath, "utf8");
   return JSON.parse(raw) as BenchmarkCase[];
 }

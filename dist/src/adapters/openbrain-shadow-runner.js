@@ -13,6 +13,10 @@ export class OpenBrainShadowRunner {
             actor: input.actor,
         });
         const hybrid = await this.hybridClient.hybridQuery(input);
+        const preferred = hybrid.path.length > 0 &&
+            hybrid.evidence.length >= semantic.evidence.length
+            ? "hybrid"
+            : "semantic";
         return {
             question: input.question,
             semantic: {
@@ -31,6 +35,7 @@ export class OpenBrainShadowRunner {
                 sameAnswer: semantic.answer === hybrid.answer,
                 hybridHasPath: hybrid.path.length > 0,
                 hybridHasMoreEvidence: hybrid.evidence.length > semantic.evidence.length,
+                preferred,
             },
         };
     }

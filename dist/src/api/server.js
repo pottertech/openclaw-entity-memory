@@ -7,6 +7,7 @@ import { QueryAuditRepository } from "../db/postgres/repositories/query-audit-re
 import { AclRepository } from "../db/postgres/repositories/acl-repository.js";
 import { AuthorityRepository } from "../db/postgres/repositories/authority-repository.js";
 import { ProvenanceRepository } from "../db/postgres/repositories/provenance-repository.js";
+import { ShadowAuditRepository } from "../db/postgres/repositories/shadow-audit-repository.js";
 import { InMemoryGraphAdapter } from "../db/graph/backends/in-memory.js";
 import { KuzuGraphAdapter } from "../db/graph/backends/kuzu.js";
 import { EntityService } from "../services/entity-service.js";
@@ -24,6 +25,7 @@ import { ProvenanceWeightedConflictService } from "../services/provenance-weight
 import { AccessAwareTraversalService } from "../services/access-aware-traversal-service.js";
 import { HybridQueryService } from "../services/hybrid-query-service.js";
 import { ImpactQueryService } from "../services/impact-query-service.js";
+import { ShadowAuditService } from "../services/shadow-audit-service.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createEntityRouter } from "./routes/entities.js";
 import { createQueryRouter } from "./routes/query.js";
@@ -31,6 +33,7 @@ import { createIngestRouter } from "./routes/ingest.js";
 import { createAuditRouter } from "./routes/audit.js";
 import { createProvenanceRouter } from "./routes/provenance.js";
 import { createReviewRouter } from "./routes/review.js";
+import { createSemanticBaselineRouter } from "./routes/semantic-baseline.js";
 export async function createServer(config) {
     const app = express();
     const pool = createPgPool(config);
@@ -56,6 +59,8 @@ export async function createServer(config) {
     const edgeService = new EdgeService(entityRepository, ingestRepository, edgeAclRepository);
     const ingestService = new IngestService(ingestRepository, edgeService);
     const queryAuditService = new QueryAuditService(queryAuditRepository);
+    const shadowAuditRepository = new ShadowAuditRepository(pool);
+    const shadowAuditService = new ShadowAuditService(shadowAuditRepository);
     const traversalService = new AccessAwareTraversalService(entityRepository, edgeRepository, graphAdapter, aclService, edgeAclService, conflictResolutionService, provenanceService, authorityService, provenanceWeightedConflictService);
     const hybridQueryService = new HybridQueryService(entityService, traversalService, edgeRepository, authorityService, provenanceService);
     const impactQueryService = new ImpactQueryService(entityService, entityRepository, traversalService, edgeRepository, authorityService, provenanceService);
@@ -66,6 +71,7 @@ export async function createServer(config) {
     app.use("/v1", createAuditRouter(pool));
     app.use("/v1", createProvenanceRouter(provenanceService));
     app.use("/v1", createReviewRouter(pool));
+    app.use("/v1", createSemanticBaselineRouter());
     app.use("/v1", createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService));
     app.use((err, _req, res, _next) => {
         res.status(500).json({

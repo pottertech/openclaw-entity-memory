@@ -109,3 +109,14 @@ The long-term semantic baseline should come from the same Open-Brain or A-RAG re
 
 Do not rely on the mock baseline past early development.
 Use the real production retrieval stack for meaningful shadow evaluation.
+
+## Limited active step
+
+After shadow criteria are met for outage impact questions:
+
+- semantic and hybrid both still run
+- hybrid may become the returned answer for approved outage-impact class
+- semantic answer remains logged for comparison
+- rollback must be config-driven
+- ENTITY_MEMORY_ROLLBACK_ENABLED and ENABLE_OUTAGE_IMPACT_ACTIVE control promotion
+- Use shadow_audit table for dual-write comparison records

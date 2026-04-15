@@ -47,3 +47,11 @@ Return to shadow mode if:
 - exclusions become unstable
 - ACL problems appear
 - latency exceeds acceptable range
+
+## Operational rule
+
+Limited active must be reversible without redeploy.
+
+Use config switches:
+- ENABLE_OUTAGE_IMPACT_ACTIVE=false (default: false, promote to true to enable)
+- ENTITY_MEMORY_ROLLBACK_ENABLED=true (default: true, set to false to commit to hybrid path)

@@ -75,3 +75,10 @@ Before limited active expands beyond shadow:
 - shadow verdict endpoint reviewed
 - canary procedure approved
 - outage-impact cutover checklist reviewed
+
+## Stage 3.5 operationalization
+
+Before expanding canary:
+- automated refresh is running
+- dashboard endpoint is live
+- operator runbook exists

@@ -21,7 +21,8 @@
     "shadow:real": "tsx examples/openbrain-real-shadow-caller.ts",
     "test:limited-active": "vitest run tests/integration/limited-active-outage-impact.test.ts",
     "cases:generate-real": "tsx scripts/generate-real-case-pack.ts",
-    "cases:refresh-real": "tsx scripts/refresh-real-case-pack.ts"
+    "cases:refresh-real": "tsx scripts/refresh-real-case-pack.ts",
+    "refresh:scheduled": "tsx scripts/scheduled-refresh.ts"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -51,3 +51,11 @@ Show one of:
 - continue canary
 - promote class
 - rollback now
+
+## Minimum API source for dashboard
+
+The dashboard should be backed by:
+- shadow_audit
+- query_audit
+- threshold calculations
+- exclusion summaries

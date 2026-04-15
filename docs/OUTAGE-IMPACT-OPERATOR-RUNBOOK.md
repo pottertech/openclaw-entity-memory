@@ -51,3 +51,10 @@ For outage-impact questions:
 3. verify returned path is semantic
 4. continue shadow if safe
 5. review latest audit and dashboard data
+
+## Trend review
+
+At least once per review cycle:
+- check trend endpoint
+- compare same-answer rate over time
+- check whether hybrid preference is stable or drifting

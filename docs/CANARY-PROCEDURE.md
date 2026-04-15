@@ -62,3 +62,9 @@ Set:
 Confirm:
 - returned path switches back to semantic
 - shadow still records if desired
+
+## Source freshness check
+
+Before trusting the latest canary results:
+- confirm case-pack refresh succeeded
+- confirm connected source adapters returned recent data

@@ -41,6 +41,7 @@ import { createInternalShadowAuditRouter } from "./routes/internal-shadow-audit.
 import { createShadowReportRouter } from "./routes/shadow-report.js";
 import { createCanaryDashboardRouter } from "./routes/canary-dashboard.js";
 import { createCanaryTrendsRouter } from "./routes/canary-trends.js";
+import { createAlertHistoryRouter } from "./routes/alert-history.js";
 
 export async function createServer(config: AppConfig): Promise<Express> {
   const app = express();
@@ -125,6 +126,7 @@ export async function createServer(config: AppConfig): Promise<Express> {
   app.use("/v1", createShadowReportRouter(pool));
   app.use("/v1", createCanaryDashboardRouter(pool));
   app.use("/v1", createCanaryTrendsRouter(pool));
+  app.use("/v1", createAlertHistoryRouter(pool));
   app.use(
     "/v1",
     createQueryRouter(

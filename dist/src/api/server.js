@@ -39,6 +39,7 @@ import { createInternalShadowAuditRouter } from "./routes/internal-shadow-audit.
 import { createShadowReportRouter } from "./routes/shadow-report.js";
 import { createCanaryDashboardRouter } from "./routes/canary-dashboard.js";
 import { createCanaryTrendsRouter } from "./routes/canary-trends.js";
+import { createAlertHistoryRouter } from "./routes/alert-history.js";
 export async function createServer(config) {
     const app = express();
     const pool = createPgPool(config);
@@ -82,6 +83,7 @@ export async function createServer(config) {
     app.use("/v1", createShadowReportRouter(pool));
     app.use("/v1", createCanaryDashboardRouter(pool));
     app.use("/v1", createCanaryTrendsRouter(pool));
+    app.use("/v1", createAlertHistoryRouter(pool));
     app.use("/v1", createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService));
     app.use((err, _req, res, _next) => {
         res.status(500).json({

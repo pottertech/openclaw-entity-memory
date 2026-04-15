@@ -36,3 +36,11 @@ Choose one:
 - expand canary scope
 - return to shadow only
 - rollback immediately
+
+## Historical review
+
+Do not review only the latest snapshot.
+Also inspect:
+- alert history over time
+- trend drift over time
+- repeated exclusion patterns

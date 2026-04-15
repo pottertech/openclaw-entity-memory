@@ -22,7 +22,8 @@
     "test:limited-active": "vitest run tests/integration/limited-active-outage-impact.test.ts",
     "cases:generate-real": "tsx scripts/generate-real-case-pack.ts",
     "cases:refresh-real": "tsx scripts/refresh-real-case-pack.ts",
-    "refresh:scheduled": "tsx scripts/scheduled-refresh.ts"
+    "refresh:scheduled": "tsx scripts/scheduled-refresh.ts",
+    "canary:alerts-history": "echo 'Use GET /v1/canary-dashboard/outage-impact/alert-history?tenant_id=tenant_default&days=14'"
   },
   "dependencies": {
     "express": "^4.19.2",

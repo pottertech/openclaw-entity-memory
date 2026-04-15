@@ -55,3 +55,10 @@ Limited active must be reversible without redeploy.
 Use config switches:
 - ENABLE_OUTAGE_IMPACT_ACTIVE=false (default: false, promote to true to enable)
 - ENTITY_MEMORY_ROLLBACK_ENABLED=true (default: true, set to false to commit to hybrid path)
+
+## Acceptance test requirement
+
+Before enabling limited active routing for outage impact:
+- limited-active routing test must pass: `npm run test:limited-active`
+- rollback drill must be practiced (see docs/ROLLBACK-DRILL.md)
+- shadow audit writes must be verified

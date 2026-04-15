@@ -18,7 +18,8 @@
     "mock:semantic": "tsx mock/semantic-baseline-server.ts",
     "shadow:example": "tsx examples/openbrain-shadow-example.ts",
     "fixtures:generate": "tsx scripts/generate-benchmark-fixtures.ts",
-    "shadow:real": "tsx examples/openbrain-real-shadow-caller.ts"
+    "shadow:real": "tsx examples/openbrain-real-shadow-caller.ts",
+    "test:limited-active": "vitest run tests/integration/limited-active-outage-impact.test.ts"
   },
   "dependencies": {
     "express": "^4.19.2",

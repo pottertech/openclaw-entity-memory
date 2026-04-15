@@ -54,3 +54,11 @@ Choose one:
 - remain in shadow mode
 - promote limited active for this class
 - rollback to semantic only
+
+## Additional review fields
+
+Include:
+- chosen path
+- rollback state
+- query class
+- whether limited active was enabled during the run

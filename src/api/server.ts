@@ -36,6 +36,8 @@ import { createAuditRouter } from "./routes/audit.js";
 import { createProvenanceRouter } from "./routes/provenance.js";
 import { createReviewRouter } from "./routes/review.js";
 import { createSemanticBaselineRouter } from "./routes/semantic-baseline.js";
+import { createShadowAuditRouter } from "./routes/shadow-audit.js";
+import { createInternalShadowAuditRouter } from "./routes/internal-shadow-audit.js";
 
 export async function createServer(config: AppConfig): Promise<Express> {
   const app = express();
@@ -115,6 +117,8 @@ export async function createServer(config: AppConfig): Promise<Express> {
   app.use("/v1", createProvenanceRouter(provenanceService));
   app.use("/v1", createReviewRouter(pool));
   app.use("/v1", createSemanticBaselineRouter());
+  app.use("/v1", createShadowAuditRouter(pool));
+  app.use("/v1", createInternalShadowAuditRouter(shadowAuditService));
   app.use(
     "/v1",
     createQueryRouter(

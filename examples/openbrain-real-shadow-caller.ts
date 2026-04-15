@@ -2,6 +2,7 @@ import { createOpenBrainEntityMemoryPackage } from "../src/adapters/openbrain-pa
 import { SemanticBaselineHttpClient } from "../src/adapters/semantic-baseline-http-client.js";
 import { OpenBrainShadowRunner } from "../src/adapters/openbrain-shadow-runner.js";
 import { classifyRelationshipQuery } from "../src/adapters/orchestrator-routing-contract.js";
+import { decideLimitedActiveRouting } from "../src/adapters/limited-active-router.js";
 
 type SemanticProviderResult = {
   answer: string;
@@ -15,7 +16,9 @@ type SemanticProviderResult = {
   }>;
 };
 
-async function getSemanticBaseline(question: string): Promise<SemanticProviderResult> {
+async function getSemanticBaseline(
+  question: string,
+): Promise<SemanticProviderResult> {
   const semanticClient = new SemanticBaselineHttpClient(
     process.env.SEMANTIC_BASELINE_BASE_URL ?? "http://localhost:4020",
   );
@@ -31,23 +34,39 @@ async function getSemanticBaseline(question: string): Promise<SemanticProviderRe
   });
 }
 
+async function writeShadowAudit(input: {
+  tenantId: string;
+  queryClass: string;
+  question: string;
+  semanticJson: Record<string, unknown>;
+  hybridJson: Record<string, unknown>;
+  comparisonJson: Record<string, unknown>;
+  chosenPath: string;
+  rollbackState: string;
+}): Promise<void> {
+  const response = await fetch(
+    `${process.env.ENTITY_MEMORY_BASE_URL ?? "http://localhost:4017"}/v1/internal/shadow-audit`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `shadow audit write failed: ${response.status} ${await response.text()}`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
   const question = "Was Alice's project affected by Tuesday's outage?";
 
   const route = classifyRelationshipQuery(question);
-
   const semanticBaseline = await getSemanticBaseline(question);
-
-  console.log(
-    JSON.stringify(
-      {
-        route,
-        semanticBaseline,
-      },
-      null,
-      2,
-    ),
-  );
 
   if (!route.shouldUseEntityMemory) {
     console.log("Not selected for shadow hybrid call");
@@ -82,14 +101,41 @@ async function main(): Promise<void> {
     minAuthorityTier: "standard",
   });
 
-  console.log(JSON.stringify({ shadowComparison: result }, null, 2));
+  const activeDecision = decideLimitedActiveRouting({
+    question,
+    enableOutageImpactActive:
+      String(process.env.ENABLE_OUTAGE_IMPACT_ACTIVE ?? "false") === "true",
+    rollbackEnabled:
+      String(process.env.ENTITY_MEMORY_ROLLBACK_ENABLED ?? "true") === "true",
+  });
+
+  const returnedAnswer =
+    activeDecision.active && activeDecision.chosenPath === "hybrid"
+      ? result.hybrid.answer
+      : semanticBaseline.answer;
+
+  await writeShadowAudit({
+    tenantId: "tenant_default",
+    queryClass: activeDecision.queryClass,
+    question,
+    semanticJson: result.semantic as unknown as Record<string, unknown>,
+    hybridJson: result.hybrid as unknown as Record<string, unknown>,
+    comparisonJson: result.comparison as unknown as Record<string, unknown>,
+    chosenPath: activeDecision.chosenPath,
+    rollbackState:
+      String(process.env.ENTITY_MEMORY_ROLLBACK_ENABLED ?? "true") === "true"
+        ? "enabled"
+        : "disabled",
+  });
 
   console.log(
     JSON.stringify(
       {
-        productionAnswer: semanticBaseline.answer,
-        shadowHybridAnswer: result.hybrid.answer,
-        note: "semantic remains authoritative until limited active gate is approved",
+        route,
+        semanticBaseline,
+        shadowComparison: result,
+        activeDecision,
+        returnedAnswer,
       },
       null,
       2,

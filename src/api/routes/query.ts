@@ -213,8 +213,11 @@ export function createQueryRouter(
 
       res.json(result);
     } catch (error) {
+      console.error("[hybrid query error]", error instanceof Error ? error.stack : error);
+
       const responseJson = {
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack?.split("\n").slice(0, 5) : undefined,
       };
 
       await queryAuditService.record({
@@ -222,7 +225,7 @@ export function createQueryRouter(
         queryType: "hybrid",
         queryText: parsed.data.question,
         requestJson: parsed.data,
-        responseJson,
+        responseJson: { error: responseJson.error },
         status: "error",
         durationMs: Date.now() - started,
       });

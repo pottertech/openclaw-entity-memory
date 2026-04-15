@@ -118,11 +118,11 @@ export class EdgeRepository {
         e.authority_tier
       FROM edges e
       LEFT JOIN authority_tiers a
-        ON a.tier_name = e.authority_tier
+        ON a.tier = e.authority_tier
       WHERE e.tenant_id = $1
         AND ($2::timestamptz IS NULL OR (e.valid_from IS NULL OR e.valid_from <= $2::timestamptz))
         AND ($2::timestamptz IS NULL OR (e.valid_to IS NULL OR e.valid_to >= $2::timestamptz))
-        AND (COALESCE(a.rank_value, 0) >= $3)
+        AND (COALESCE(a.rank, 0) >= $3)
       ORDER BY e.created_at ASC
       `, [input.tenantId, input.asOf ?? null, input.minAuthorityRank ?? 0]);
         return result.rows;
@@ -139,13 +139,13 @@ export class EdgeRepository {
         ev.evidence_span,
         ev.confidence,
         ev.created_at,
-        COALESCE(a.rank_value, 0) AS rank_value
+        COALESCE(a.rank, 0) AS rank_value
       FROM edge_evidence ev
       LEFT JOIN authority_tiers a
-        ON a.tier_name = ev.authority_tier
+        ON a.tier = ev.authority_tier
       WHERE ev.tenant_id = $1
         AND ev.edge_xid = $2
-        AND COALESCE(a.rank_value, 0) >= $3
+        AND COALESCE(a.rank, 0) >= $3
       ORDER BY ev.created_at ASC
       `, [tenantId, edgeXid, minAuthorityRank]);
         return result.rows.map(mapEvidenceRow);

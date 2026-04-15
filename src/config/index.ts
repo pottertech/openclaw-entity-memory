@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   DEFAULT_TENANT_ID: z.string().min(1).default("tenant_default"),
   LOG_LEVEL: z.string().default("info"),
+  GRAPH_BACKEND: z.string().default("in-memory"),
+  GRAPH_MAX_PATHS: z.coerce.number().int().positive().default(5),
 });
 
 export type AppConfig = {
@@ -14,6 +16,8 @@ export type AppConfig = {
   nodeEnv: string;
   defaultTenantId: string;
   logLevel: string;
+  graphBackend: string;
+  graphMaxPaths: number;
 };
 
 export function loadConfig(): AppConfig {
@@ -25,5 +29,7 @@ export function loadConfig(): AppConfig {
     nodeEnv: parsed.NODE_ENV,
     defaultTenantId: parsed.DEFAULT_TENANT_ID,
     logLevel: parsed.LOG_LEVEL,
+    graphBackend: parsed.GRAPH_BACKEND,
+    graphMaxPaths: parsed.GRAPH_MAX_PATHS,
   };
 }

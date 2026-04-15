@@ -42,5 +42,68 @@ export function createReviewRouter(pool) {
             })),
         });
     });
+    router.get("/review/exclusions", async (req, res) => {
+        const tenantId = String(req.query.tenant_id ?? "").trim();
+        const limit = Math.min(Number(req.query.limit ?? 25), 100);
+        if (!tenantId) {
+            res.status(400).json({ error: "tenant_id is required" });
+            return;
+        }
+        const result = await pool.query(`
+      SELECT
+        xid,
+        query_type,
+        response_json,
+        created_at
+      FROM query_audit
+      WHERE tenant_id = $1
+        AND response_json ? 'explanation'
+      ORDER BY created_at DESC
+      LIMIT $2
+      `, [tenantId, limit]);
+        const exclusions = result.rows.flatMap((row) => {
+            const responseJson = row.response_json;
+            const items = responseJson?.explanation?.exclusions;
+            if (!Array.isArray(items)) {
+                return [];
+            }
+            return items.map((item) => ({
+                queryAuditXid: row.xid,
+                queryType: row.query_type,
+                createdAt: row.created_at.toISOString(),
+                kind: item.kind,
+                id: item.id,
+                reason: item.reason,
+                detail: item.detail,
+            }));
+        });
+        res.json({ exclusions });
+    });
+    router.get("/review/benchmark-summary", async (req, res) => {
+        const tenantId = String(req.query.tenant_id ?? "").trim();
+        if (!tenantId) {
+            res.status(400).json({ error: "tenant_id is required" });
+            return;
+        }
+        const result = await pool.query(`
+      SELECT
+        query_type,
+        status,
+        COUNT(*)::int AS count,
+        AVG(duration_ms)::numeric(10,2) AS avg_duration_ms
+      FROM query_audit
+      WHERE tenant_id = $1
+      GROUP BY query_type, status
+      ORDER BY query_type, status
+      `, [tenantId]);
+        res.json({
+            summary: result.rows.map((row) => ({
+                queryType: row.query_type,
+                status: row.status,
+                count: Number(row.count),
+                avgDurationMs: Number(row.avg_duration_ms),
+            })),
+        });
+    });
     return router;
 }

@@ -1,8 +1,15 @@
-import type { GraphAdapter, GraphEdge, GraphNode, GraphPathHop } from "../adapter.js";
+import type {
+  GraphAdapter,
+  GraphEdge,
+  GraphNode,
+  GraphPathHop,
+} from "../adapter.js";
+import { WeightedPathSearch } from "../../../query/weighted-path-search.js";
 
 export class InMemoryGraphAdapter implements GraphAdapter {
   private readonly nodes = new Map<string, GraphNode>();
   private readonly adjacency = new Map<string, GraphPathHop[]>();
+  private readonly weightedPathSearch = new WeightedPathSearch();
 
   async load(nodes: GraphNode[], edges: GraphEdge[]): Promise<void> {
     this.nodes.clear();
@@ -23,6 +30,7 @@ export class InMemoryGraphAdapter implements GraphAdapter {
         edgeType: edge.type,
         from: edge.from,
         to: edge.to,
+        score: edge.score ?? 1,
       };
 
       const reverseHop: GraphPathHop = {
@@ -30,6 +38,7 @@ export class InMemoryGraphAdapter implements GraphAdapter {
         edgeType: edge.type,
         from: edge.to,
         to: edge.from,
+        score: edge.score ?? 1,
       };
 
       this.adjacency.get(edge.from)?.push(hop);
@@ -46,43 +55,43 @@ export class InMemoryGraphAdapter implements GraphAdapter {
     toXid: string,
     maxDepth: number,
   ): Promise<GraphPathHop[] | null> {
+    const paths = await this.findTopPaths(fromXid, toXid, maxDepth, 1);
+    return paths[0] ?? null;
+  }
+
+  async findTopPaths(
+    fromXid: string,
+    toXid: string,
+    maxDepth: number,
+    maxResults = 5,
+  ): Promise<GraphPathHop[][]> {
     if (fromXid === toXid) {
-      return [];
+      return [[]];
     }
 
-    const queue: Array<{ current: string; path: GraphPathHop[] }> = [
-      { current: fromXid, path: [] },
-    ];
-    const visited = new Set<string>([fromXid]);
+    const results = this.weightedPathSearch.findTopPaths({
+      start: fromXid,
+      goal: toXid,
+      maxDepth,
+      maxResults,
+      neighborsForNode: (xid) =>
+        (this.adjacency.get(xid) ?? []).map((hop) => ({
+          edgeXid: hop.edgeXid,
+          edgeType: hop.edgeType,
+          from: hop.from,
+          to: hop.to,
+          score: hop.score ?? 1,
+        })),
+    });
 
-    while (queue.length > 0) {
-      const item = queue.shift();
-      if (!item) {
-        continue;
-      }
-
-      if (item.path.length >= maxDepth) {
-        continue;
-      }
-
-      for (const hop of this.adjacency.get(item.current) ?? []) {
-        if (visited.has(hop.to)) {
-          continue;
-        }
-
-        const nextPath = [...item.path, hop];
-        if (hop.to === toXid) {
-          return nextPath;
-        }
-
-        visited.add(hop.to);
-        queue.push({
-          current: hop.to,
-          path: nextPath,
-        });
-      }
-    }
-
-    return null;
+    return results.map((item) =>
+      item.hops.map((hop) => ({
+        edgeXid: hop.edgeXid,
+        edgeType: hop.edgeType,
+        from: hop.from,
+        to: hop.to,
+        score: hop.score,
+      })),
+    );
   }
 }

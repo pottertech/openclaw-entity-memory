@@ -6,7 +6,7 @@ export class QueryAuditRepository {
     async insert(record) {
         await this.pool.query(`
       INSERT INTO query_audit (
-        xid, tenant_id, query_type, query_text, request_json,
+        xid, tenant_id, query_type, question, request_json,
         response_json, status, duration_ms
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

@@ -1,0 +1,28 @@
+[
+  {
+    "name": "alice-project-outage",
+    "question": "Was Alice's project affected by Tuesday's outage?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      { "text": "Alice is the tech lead on Project Atlas", "documentXid": "doc_1", "chunkXid": "chk_1" },
+      { "text": "Project Atlas uses PostgreSQL for its primary datastore", "documentXid": "doc_2", "chunkXid": "chk_8" },
+      { "text": "The PostgreSQL cluster went down on Tuesday", "documentXid": "doc_3", "chunkXid": "chk_4" }
+    ]
+  },
+  {
+    "name": "project-datastore-link",
+    "question": "Does Project Atlas depend on PostgreSQL Cluster?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      { "text": "Project Atlas uses PostgreSQL for its primary datastore" }
+    ]
+  },
+  {
+    "name": "leadership-link",
+    "question": "Does Alice lead Project Atlas?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      { "text": "Alice is the tech lead on Project Atlas" }
+    ]
+  }
+]

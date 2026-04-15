@@ -1,4 +1,5 @@
 import { DefaultSemanticBridge } from "../query/semantic-bridge.js";
+import { PathScorer } from "../query/path-scorer.js";
 const CAPITALIZED_PHRASE_REGEX = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b/g;
 export class HybridQueryService {
     entityService;
@@ -7,6 +8,7 @@ export class HybridQueryService {
     authorityService;
     provenanceService;
     semanticBridge = new DefaultSemanticBridge();
+    pathScorer = new PathScorer();
     constructor(entityService, traversalService, edgeRepository, authorityService, provenanceService) {
         this.entityService = entityService;
         this.traversalService = traversalService;
@@ -36,25 +38,61 @@ export class HybridQueryService {
                 });
             }
         }
-        let bestPath = null;
+        // Multi-path search with scoring
+        const candidatePaths = [];
         for (let i = 0; i < resolved.length; i += 1) {
             for (let j = i + 1; j < resolved.length; j += 1) {
-                const path = await this.traversalService.findPathByResolvedIds({
+                const paths = await this.traversalService.findTopPathsByResolvedIds({
                     tenantId: request.tenantId,
                     fromXid: resolved[i].xid,
                     toXid: resolved[j].xid,
                     maxDepth: 4,
+                    maxResults: 5,
                     asOf: request.asOf,
                     minAuthorityRank,
                     actor: request.actor,
                 });
-                if (path && (!bestPath || path.length > bestPath.length)) {
-                    bestPath = path;
+                for (const path of paths) {
+                    const scoredHops = [];
+                    for (const hop of path) {
+                        const visible = await this.provenanceService.getVisibleEdgeProvenance({
+                            tenantId: request.tenantId,
+                            edgeXid: hop.edgeXid,
+                            actor: request.actor,
+                        });
+                        const authorityRank = visible.provenance[0]?.edgeAuthorityTier === "critical"
+                            ? 40
+                            : visible.provenance[0]?.edgeAuthorityTier === "high"
+                                ? 30
+                                : visible.provenance[0]?.edgeAuthorityTier === "standard"
+                                    ? 20
+                                    : 10;
+                        scoredHops.push({
+                            edgeXid: hop.edgeXid,
+                            edgeType: hop.edge,
+                            from: hop.from,
+                            to: hop.to,
+                            edgeAuthorityRank: authorityRank,
+                            evidenceVisibleCount: visible.provenance.length,
+                            evidenceHiddenCount: visible.exclusions.length,
+                            confidence: hop.score ?? 1,
+                        });
+                    }
+                    candidatePaths.push({
+                        rawPath: path,
+                        scored: this.pathScorer.scorePath(scoredHops),
+                    });
                 }
             }
         }
+        const bestScored = this.pathScorer.chooseBest(candidatePaths.map((item) => item.scored));
+        const bestPath = bestScored
+            ? candidatePaths.find((item) => item.scored.totalScore === bestScored.totalScore)?.rawPath ?? null
+            : null;
         const evidence = [];
-        const explanationExclusions = [...this.traversalService.getExplanations()];
+        const explanationExclusions = [
+            ...this.traversalService.getExplanations(),
+        ];
         if (bestPath) {
             for (const hop of bestPath) {
                 const visible = await this.provenanceService.getVisibleEdgeProvenance({
@@ -87,6 +125,9 @@ export class HybridQueryService {
                 acl: true,
                 asOf: request.asOf ?? null,
                 minAuthorityTier: request.minAuthorityTier ?? null,
+                pathScore: bestScored?.totalScore ?? null,
+                visibleEvidenceCount: bestScored?.visibleEvidenceCount ?? 0,
+                hiddenEvidenceCount: bestScored?.hiddenEvidenceCount ?? 0,
             },
             explanation: {
                 exclusions: explanationExclusions,

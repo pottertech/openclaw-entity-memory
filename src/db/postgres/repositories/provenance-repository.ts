@@ -60,7 +60,23 @@ export class ProvenanceRepository {
   > {
     const result = await this.pool.query<EdgeProvenanceRow>(
       `
-      SELECT *
+      SELECT
+        edge_xid,
+        tenant_id,
+        edge_type,
+        from_entity_xid,
+        to_entity_xid,
+        edge_authority_tier,
+        conflict_key,
+        conflict_status,
+        superseded_by_edge_xid,
+        evidence_xid,
+        source_ref,
+        document_xid,
+        chunk_xid,
+        evidence_authority_tier,
+        evidence_confidence,
+        evidence_created_at
       FROM v_edge_provenance
       WHERE tenant_id = $1
         AND edge_xid = $2
@@ -107,7 +123,18 @@ export class ProvenanceRepository {
   > {
     const result = await this.pool.query<EntityNeighborRow>(
       `
-      SELECT *
+      SELECT
+        tenant_id,
+        edge_xid,
+        edge_type,
+        from_entity_xid,
+        from_entity_name,
+        to_entity_xid,
+        to_entity_name,
+        authority_tier,
+        conflict_status,
+        valid_from,
+        valid_to
       FROM v_entity_edge_neighbors
       WHERE tenant_id = $1
         AND ($2 IN (from_entity_xid, to_entity_xid))

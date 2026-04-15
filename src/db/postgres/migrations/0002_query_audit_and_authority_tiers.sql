@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS query_audit (
   query_type   TEXT NOT NULL,
   question     TEXT NULL,
   source_ref   TEXT NULL,
+  request_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  response_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status       TEXT NOT NULL DEFAULT 'ok',
   result_count INTEGER NOT NULL DEFAULT 0,
   duration_ms  INTEGER NOT NULL DEFAULT 0,
   filters_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -26,6 +29,9 @@ CREATE TABLE IF NOT EXISTS query_audit (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT query_audit_query_type_check CHECK (
     query_type IN ('path', 'hybrid', 'impact', 'entity_lookup', 'semantic_search')
+  ),
+  CONSTRAINT query_audit_status_check CHECK (
+    status IN ('ok', 'error')
   )
 );
 

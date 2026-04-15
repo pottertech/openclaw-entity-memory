@@ -4,7 +4,21 @@ import type { GraphAdapter, GraphEdge, GraphNode } from "../db/graph/adapter.js"
 import { AclService } from "./acl-service.js";
 import { EdgeAclService } from "./edge-acl-service.js";
 import { ConflictResolutionService } from "./conflict-resolution-service.js";
+import { ProvenanceService } from "./provenance-service.js";
+import { AuthorityService } from "./authority-service.js";
+import { ProvenanceWeightedConflictService } from "./provenance-weighted-conflict-service.js";
 import type { QueryExclusion } from "../types/explanations.js";
+
+type ProvenanceAwareEdge = {
+  xid: string;
+  conflictKey: string | null;
+  authorityRank: number;
+  confidence: number;
+  visibleEvidenceCount: number;
+  hiddenEvidenceCount: number;
+  createdAt: string;
+  conflictStatus: string;
+};
 
 export class AccessAwareTraversalService {
   private exclusions: QueryExclusion[] = [];
@@ -16,6 +30,9 @@ export class AccessAwareTraversalService {
     private readonly aclService: AclService,
     private readonly edgeAclService: EdgeAclService,
     private readonly conflictResolutionService: ConflictResolutionService,
+    private readonly provenanceService: ProvenanceService,
+    private readonly authorityService: AuthorityService,
+    private readonly provenanceWeightedConflictService: ProvenanceWeightedConflictService,
   ) {}
 
   getExplanations(): QueryExclusion[] {
@@ -40,7 +57,9 @@ export class AccessAwareTraversalService {
     });
 
     // Record temporal/authority exclusions before conflict resolution
-    const allTenantEdges = await this.edgeRepository.getAllEdgesForTenant(input.tenantId);
+    const allTenantEdges = await this.edgeRepository.getAllEdgesForTenant(
+      input.tenantId,
+    );
     const rawEdgeIds = new Set(rawEdges.map((edge) => edge.xid));
 
     for (const edge of allTenantEdges) {
@@ -63,18 +82,46 @@ export class AccessAwareTraversalService {
       }
     }
 
-    const candidateEdges = rawEdges.map((edge) => ({
-      ...edge,
-      authorityRank: 0,
-      conflictKey: (edge as any).conflict_key ?? null,
-      conflictStatus: (edge as any).conflict_status ?? "active",
-      createdAt: edge.created_at.toISOString(),
-      confidence: Number(edge.confidence),
-      validFrom: edge.valid_from ? edge.valid_from.toISOString() : null,
-      validTo: edge.valid_to ? edge.valid_to.toISOString() : null,
-    }));
+    // Build provenance-aware edge candidates
+    const candidateEdges: ProvenanceAwareEdge[] = [];
 
-    const winners = this.conflictResolutionService.choosePreferredEdges(candidateEdges);
+    for (const edge of rawEdges) {
+      const tierRank =
+        edge.authority_tier === "critical"
+          ? 4
+          : edge.authority_tier === "high"
+            ? 3
+            : edge.authority_tier === "standard"
+              ? 2
+              : 1;
+
+      const visibleProv = await this.provenanceService.getVisibleEdgeProvenance({
+        tenantId: input.tenantId,
+        edgeXid: edge.xid,
+        actor: input.actor,
+      });
+
+      candidateEdges.push({
+        xid: edge.xid,
+        conflictKey: (edge as Record<string, unknown>).conflict_key
+          ? String((edge as Record<string, unknown>).conflict_key)
+          : null,
+        authorityRank: tierRank,
+        confidence: Number(edge.confidence),
+        visibleEvidenceCount: visibleProv.provenance.length,
+        hiddenEvidenceCount: visibleProv.exclusions.length,
+        createdAt: edge.created_at.toISOString(),
+        conflictStatus: String(
+          (edge as Record<string, unknown>).conflict_status ?? "active",
+        ),
+      });
+    }
+
+    // Provenance-weighted conflict resolution
+    const winners =
+      this.provenanceWeightedConflictService.choosePreferredEdges(
+        candidateEdges,
+      );
     const winnerIds = new Set(winners.map((item) => item.xid));
 
     const visibleEdges: typeof rawEdges = [];
@@ -170,6 +217,7 @@ export class AccessAwareTraversalService {
       type: edge.edge_type,
       from: edge.from_entity_xid,
       to: edge.to_entity_xid,
+      score: Number(edge.confidence),
     }));
 
     await this.graphAdapter.load(nodes, graphEdges);
@@ -220,8 +268,14 @@ export class AccessAwareTraversalService {
     }> = [];
 
     for (const hop of path) {
-      const fromEntity = await this.entityRepository.getByXid(input.tenantId, hop.from);
-      const toEntity = await this.entityRepository.getByXid(input.tenantId, hop.to);
+      const fromEntity = await this.entityRepository.getByXid(
+        input.tenantId,
+        hop.from,
+      );
+      const toEntity = await this.entityRepository.getByXid(
+        input.tenantId,
+        hop.to,
+      );
 
       hops.push({
         from: fromEntity?.canonicalName ?? hop.from,
@@ -232,5 +286,81 @@ export class AccessAwareTraversalService {
     }
 
     return hops;
+  }
+
+  async findTopPathsByResolvedIds(input: {
+    tenantId: string;
+    fromXid: string;
+    toXid: string;
+    maxDepth?: number;
+    maxResults?: number;
+    asOf?: string;
+    minAuthorityRank?: number;
+    actor?: {
+      subjectType?: string;
+      subjectId?: string;
+    };
+  }): Promise<
+    Array<
+      Array<{
+        from: string;
+        edge: string;
+        to: string;
+        edgeXid: string;
+        score?: number;
+      }>
+    >
+  > {
+    await this.refreshTenantGraph(input);
+
+    const topPaths = await this.graphAdapter.findTopPaths(
+      input.fromXid,
+      input.toXid,
+      input.maxDepth ?? 4,
+      input.maxResults ?? 5,
+    );
+
+    const resolvedPaths: Array<
+      Array<{
+        from: string;
+        edge: string;
+        to: string;
+        edgeXid: string;
+        score?: number;
+      }>
+    > = [];
+
+    for (const path of topPaths) {
+      const resolvedHops: Array<{
+        from: string;
+        edge: string;
+        to: string;
+        edgeXid: string;
+        score?: number;
+      }> = [];
+
+      for (const hop of path) {
+        const fromEntity = await this.entityRepository.getByXid(
+          input.tenantId,
+          hop.from,
+        );
+        const toEntity = await this.entityRepository.getByXid(
+          input.tenantId,
+          hop.to,
+        );
+
+        resolvedHops.push({
+          from: fromEntity?.canonicalName ?? hop.from,
+          edge: hop.edgeType,
+          to: toEntity?.canonicalName ?? hop.to,
+          edgeXid: hop.edgeXid,
+          score: hop.score,
+        });
+      }
+
+      resolvedPaths.push(resolvedHops);
+    }
+
+    return resolvedPaths;
   }
 }

@@ -5,14 +5,20 @@ export class AccessAwareTraversalService {
     aclService;
     edgeAclService;
     conflictResolutionService;
+    provenanceService;
+    authorityService;
+    provenanceWeightedConflictService;
     exclusions = [];
-    constructor(entityRepository, edgeRepository, graphAdapter, aclService, edgeAclService, conflictResolutionService) {
+    constructor(entityRepository, edgeRepository, graphAdapter, aclService, edgeAclService, conflictResolutionService, provenanceService, authorityService, provenanceWeightedConflictService) {
         this.entityRepository = entityRepository;
         this.edgeRepository = edgeRepository;
         this.graphAdapter = graphAdapter;
         this.aclService = aclService;
         this.edgeAclService = edgeAclService;
         this.conflictResolutionService = conflictResolutionService;
+        this.provenanceService = provenanceService;
+        this.authorityService = authorityService;
+        this.provenanceWeightedConflictService = provenanceWeightedConflictService;
     }
     getExplanations() {
         return [...this.exclusions];
@@ -46,17 +52,36 @@ export class AccessAwareTraversalService {
                 });
             }
         }
-        const candidateEdges = rawEdges.map((edge) => ({
-            ...edge,
-            authorityRank: 0,
-            conflictKey: edge.conflict_key ?? null,
-            conflictStatus: edge.conflict_status ?? "active",
-            createdAt: edge.created_at.toISOString(),
-            confidence: Number(edge.confidence),
-            validFrom: edge.valid_from ? edge.valid_from.toISOString() : null,
-            validTo: edge.valid_to ? edge.valid_to.toISOString() : null,
-        }));
-        const winners = this.conflictResolutionService.choosePreferredEdges(candidateEdges);
+        // Build provenance-aware edge candidates
+        const candidateEdges = [];
+        for (const edge of rawEdges) {
+            const tierRank = edge.authority_tier === "critical"
+                ? 4
+                : edge.authority_tier === "high"
+                    ? 3
+                    : edge.authority_tier === "standard"
+                        ? 2
+                        : 1;
+            const visibleProv = await this.provenanceService.getVisibleEdgeProvenance({
+                tenantId: input.tenantId,
+                edgeXid: edge.xid,
+                actor: input.actor,
+            });
+            candidateEdges.push({
+                xid: edge.xid,
+                conflictKey: edge.conflict_key
+                    ? String(edge.conflict_key)
+                    : null,
+                authorityRank: tierRank,
+                confidence: Number(edge.confidence),
+                visibleEvidenceCount: visibleProv.provenance.length,
+                hiddenEvidenceCount: visibleProv.exclusions.length,
+                createdAt: edge.created_at.toISOString(),
+                conflictStatus: String(edge.conflict_status ?? "active"),
+            });
+        }
+        // Provenance-weighted conflict resolution
+        const winners = this.provenanceWeightedConflictService.choosePreferredEdges(candidateEdges);
         const winnerIds = new Set(winners.map((item) => item.xid));
         const visibleEdges = [];
         for (const edge of rawEdges) {
@@ -139,6 +164,7 @@ export class AccessAwareTraversalService {
             type: edge.edge_type,
             from: edge.from_entity_xid,
             to: edge.to_entity_xid,
+            score: Number(edge.confidence),
         }));
         await this.graphAdapter.load(nodes, graphEdges);
     }
@@ -166,5 +192,26 @@ export class AccessAwareTraversalService {
             });
         }
         return hops;
+    }
+    async findTopPathsByResolvedIds(input) {
+        await this.refreshTenantGraph(input);
+        const topPaths = await this.graphAdapter.findTopPaths(input.fromXid, input.toXid, input.maxDepth ?? 4, input.maxResults ?? 5);
+        const resolvedPaths = [];
+        for (const path of topPaths) {
+            const resolvedHops = [];
+            for (const hop of path) {
+                const fromEntity = await this.entityRepository.getByXid(input.tenantId, hop.from);
+                const toEntity = await this.entityRepository.getByXid(input.tenantId, hop.to);
+                resolvedHops.push({
+                    from: fromEntity?.canonicalName ?? hop.from,
+                    edge: hop.edgeType,
+                    to: toEntity?.canonicalName ?? hop.to,
+                    edgeXid: hop.edgeXid,
+                    score: hop.score,
+                });
+            }
+            resolvedPaths.push(resolvedHops);
+        }
+        return resolvedPaths;
     }
 }

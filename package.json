@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "shadow:compare": "tsx scripts/shadow-compare.ts",
+    "benchmark:report": "tsx scripts/benchmark-report.ts",
+    "promotion:report": "tsx scripts/promotion-report.ts"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -5,11 +5,14 @@ import { DefaultSemanticBridge } from "../query/semantic-bridge.js";
 import { AccessAwareTraversalService } from "./access-aware-traversal-service.js";
 import { AuthorityService } from "./authority-service.js";
 import { ProvenanceService } from "./provenance-service.js";
+import { PathScorer, type ScoredPath } from "../query/path-scorer.js";
 
-const CAPITALIZED_PHRASE_REGEX = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b/g;
+const CAPITALIZED_PHRASE_REGEX =
+  /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b/g;
 
 export class HybridQueryService {
   private readonly semanticBridge = new DefaultSemanticBridge();
+  private readonly pathScorer = new PathScorer();
 
   constructor(
     private readonly entityService: EntityService,
@@ -27,9 +30,17 @@ export class HybridQueryService {
   ): Promise<{
     answer: string;
     confidence: "low" | "medium" | "high";
-    entities: Array<{ xid: string; entityType: string; canonicalName: string }>;
+    entities: Array<{
+      xid: string;
+      entityType: string;
+      canonicalName: string;
+    }>;
     path: Array<{ from: string; edge: string; to: string }>;
-    evidence: Array<{ edgeXid: string; documentXid: string | null; chunkXid: string | null }>;
+    evidence: Array<{
+      edgeXid: string;
+      documentXid: string | null;
+      chunkXid: string | null;
+    }>;
     filtersApplied: Record<string, unknown>;
     explanation: {
       exclusions: Array<{
@@ -92,27 +103,80 @@ export class HybridQueryService {
       }
     }
 
-    let bestPath:
-      | Array<{ from: string; edge: string; to: string; edgeXid: string }>
-      | null = null;
+    // Multi-path search with scoring
+    const candidatePaths: Array<{
+      rawPath: Array<{
+        from: string;
+        edge: string;
+        to: string;
+        edgeXid: string;
+        score?: number;
+      }>;
+      scored: ScoredPath;
+    }> = [];
 
     for (let i = 0; i < resolved.length; i += 1) {
       for (let j = i + 1; j < resolved.length; j += 1) {
-        const path = await this.traversalService.findPathByResolvedIds({
+        const paths = await this.traversalService.findTopPathsByResolvedIds({
           tenantId: request.tenantId,
           fromXid: resolved[i].xid,
           toXid: resolved[j].xid,
           maxDepth: 4,
+          maxResults: 5,
           asOf: request.asOf,
           minAuthorityRank,
           actor: request.actor,
         });
 
-        if (path && (!bestPath || path.length > bestPath.length)) {
-          bestPath = path;
+        for (const path of paths) {
+          const scoredHops = [];
+
+          for (const hop of path) {
+            const visible =
+              await this.provenanceService.getVisibleEdgeProvenance({
+                tenantId: request.tenantId,
+                edgeXid: hop.edgeXid,
+                actor: request.actor,
+              });
+
+            const authorityRank =
+              visible.provenance[0]?.edgeAuthorityTier === "critical"
+                ? 40
+                : visible.provenance[0]?.edgeAuthorityTier === "high"
+                  ? 30
+                  : visible.provenance[0]?.edgeAuthorityTier === "standard"
+                    ? 20
+                    : 10;
+
+            scoredHops.push({
+              edgeXid: hop.edgeXid,
+              edgeType: hop.edge,
+              from: hop.from,
+              to: hop.to,
+              edgeAuthorityRank: authorityRank,
+              evidenceVisibleCount: visible.provenance.length,
+              evidenceHiddenCount: visible.exclusions.length,
+              confidence: hop.score ?? 1,
+            });
+          }
+
+          candidatePaths.push({
+            rawPath: path,
+            scored: this.pathScorer.scorePath(scoredHops),
+          });
         }
       }
     }
+
+    const bestScored = this.pathScorer.chooseBest(
+      candidatePaths.map((item) => item.scored),
+    );
+
+    const bestPath = bestScored
+      ? candidatePaths.find(
+          (item) => item.scored.totalScore === bestScored.totalScore,
+        )?.rawPath ?? null
+      : null;
 
     const evidence: Array<{
       edgeXid: string;
@@ -120,7 +184,9 @@ export class HybridQueryService {
       chunkXid: string | null;
     }> = [];
 
-    const explanationExclusions = [...this.traversalService.getExplanations()];
+    const explanationExclusions = [
+      ...this.traversalService.getExplanations(),
+    ];
 
     if (bestPath) {
       for (const hop of bestPath) {
@@ -157,6 +223,9 @@ export class HybridQueryService {
         acl: true,
         asOf: request.asOf ?? null,
         minAuthorityTier: request.minAuthorityTier ?? null,
+        pathScore: bestScored?.totalScore ?? null,
+        visibleEvidenceCount: bestScored?.visibleEvidenceCount ?? 0,
+        hiddenEvidenceCount: bestScored?.hiddenEvidenceCount ?? 0,
       },
       explanation: {
         exclusions: explanationExclusions,
@@ -164,7 +233,10 @@ export class HybridQueryService {
     };
   }
 
-  private extractCandidateNames(question: string, candidateTexts: string[]): string[] {
+  private extractCandidateNames(
+    question: string,
+    candidateTexts: string[],
+  ): string[] {
     const results = new Set<string>();
 
     for (const text of [question, ...candidateTexts]) {

@@ -1,6 +1,8 @@
+import { WeightedPathSearch } from "../../../query/weighted-path-search.js";
 export class InMemoryGraphAdapter {
     nodes = new Map();
     adjacency = new Map();
+    weightedPathSearch = new WeightedPathSearch();
     async load(nodes, edges) {
         this.nodes.clear();
         this.adjacency.clear();
@@ -17,12 +19,14 @@ export class InMemoryGraphAdapter {
                 edgeType: edge.type,
                 from: edge.from,
                 to: edge.to,
+                score: edge.score ?? 1,
             };
             const reverseHop = {
                 edgeXid: edge.xid,
                 edgeType: edge.type,
                 from: edge.to,
                 to: edge.from,
+                score: edge.score ?? 1,
             };
             this.adjacency.get(edge.from)?.push(hop);
             this.adjacency.get(edge.to)?.push(reverseHop);
@@ -32,36 +36,32 @@ export class InMemoryGraphAdapter {
         return this.adjacency.get(xid) ?? [];
     }
     async findPath(fromXid, toXid, maxDepth) {
+        const paths = await this.findTopPaths(fromXid, toXid, maxDepth, 1);
+        return paths[0] ?? null;
+    }
+    async findTopPaths(fromXid, toXid, maxDepth, maxResults = 5) {
         if (fromXid === toXid) {
-            return [];
+            return [[]];
         }
-        const queue = [
-            { current: fromXid, path: [] },
-        ];
-        const visited = new Set([fromXid]);
-        while (queue.length > 0) {
-            const item = queue.shift();
-            if (!item) {
-                continue;
-            }
-            if (item.path.length >= maxDepth) {
-                continue;
-            }
-            for (const hop of this.adjacency.get(item.current) ?? []) {
-                if (visited.has(hop.to)) {
-                    continue;
-                }
-                const nextPath = [...item.path, hop];
-                if (hop.to === toXid) {
-                    return nextPath;
-                }
-                visited.add(hop.to);
-                queue.push({
-                    current: hop.to,
-                    path: nextPath,
-                });
-            }
-        }
-        return null;
+        const results = this.weightedPathSearch.findTopPaths({
+            start: fromXid,
+            goal: toXid,
+            maxDepth,
+            maxResults,
+            neighborsForNode: (xid) => (this.adjacency.get(xid) ?? []).map((hop) => ({
+                edgeXid: hop.edgeXid,
+                edgeType: hop.edgeType,
+                from: hop.from,
+                to: hop.to,
+                score: hop.score ?? 1,
+            })),
+        });
+        return results.map((item) => item.hops.map((hop) => ({
+            edgeXid: hop.edgeXid,
+            edgeType: hop.edgeType,
+            from: hop.from,
+            to: hop.to,
+            score: hop.score,
+        })));
     }
 }

@@ -1,11 +1,9 @@
 import type pg from "pg";
 
 type AuthorityTierRow = {
-  xid: string;
-  tier_name: string;
-  rank_value: number;
+  tier: string;
+  rank: number;
   description: string;
-  created_at: Date;
 };
 
 export class AuthorityRepository {
@@ -14,9 +12,9 @@ export class AuthorityRepository {
   async getRankForTier(tierName: string): Promise<number | null> {
     const result = await this.pool.query<AuthorityTierRow>(
       `
-      SELECT xid, tier_name, rank_value, description, created_at
+      SELECT tier, rank, description
       FROM authority_tiers
-      WHERE tier_name = $1
+      WHERE tier = $1
       LIMIT 1
       `,
       [tierName],
@@ -26,32 +24,28 @@ export class AuthorityRepository {
       return null;
     }
 
-    return result.rows[0].rank_value;
+    return result.rows[0].rank;
   }
 
   async listTiers(): Promise<
     Array<{
-      xid: string;
-      tierName: string;
-      rankValue: number;
+      tier: string;
+      rank: number;
       description: string;
-      createdAt: string;
     }>
   > {
     const result = await this.pool.query<AuthorityTierRow>(
       `
-      SELECT xid, tier_name, rank_value, description, created_at
+      SELECT tier, rank, description
       FROM authority_tiers
-      ORDER BY rank_value ASC
+      ORDER BY rank ASC
       `,
     );
 
     return result.rows.map((row) => ({
-      xid: row.xid,
-      tierName: row.tier_name,
-      rankValue: row.rank_value,
+      tier: row.tier,
+      rank: row.rank,
       description: row.description,
-      createdAt: row.created_at.toISOString(),
     }));
   }
 }

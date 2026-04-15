@@ -67,3 +67,11 @@ If any of the following occur:
 - unstable exclusions
 - latency spike
 then disable active routing for the affected class and return to shadow mode.
+
+## Stage 3 canary entry
+
+Before limited active expands beyond shadow:
+- real case pack exists
+- shadow verdict endpoint reviewed
+- canary procedure approved
+- outage-impact cutover checklist reviewed

@@ -1,0 +1,79 @@
+[
+  {
+    "name": "incident-impact-project-atlas",
+    "question": "Was Project Atlas affected by Tuesday Outage?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "Project Atlas depends on PostgreSQL Cluster",
+        "score": 0.95,
+        "metadata": {
+          "sourceRef": "static:incident:tuesday-outage"
+        }
+      },
+      {
+        "text": "PostgreSQL Cluster was affected by Tuesday Outage",
+        "score": 0.94,
+        "metadata": {
+          "sourceRef": "static:incident:tuesday-outage"
+        }
+      }
+    ]
+  },
+  {
+    "name": "owner-incident-alice",
+    "question": "Was Alice's project affected by Tuesday Outage?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "Alice leads Project Atlas",
+        "score": 0.96,
+        "metadata": {
+          "sourceRef": "static:owner:alice-atlas"
+        }
+      },
+      {
+        "text": "Project Atlas depends on PostgreSQL Cluster",
+        "score": 0.95,
+        "metadata": {
+          "sourceRef": "static:incident:tuesday-outage"
+        }
+      },
+      {
+        "text": "PostgreSQL Cluster was affected by Tuesday Outage",
+        "score": 0.94,
+        "metadata": {
+          "sourceRef": "static:incident:tuesday-outage"
+        }
+      }
+    ]
+  },
+  {
+    "name": "repo-service-auth-repo",
+    "question": "Does auth-repo implement Auth Service?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "auth-repo implements Auth Service",
+        "score": 0.95,
+        "metadata": {
+          "sourceRef": "static:repo:auth-repo"
+        }
+      }
+    ]
+  },
+  {
+    "name": "workflow-dependency-order-workflow",
+    "question": "Does Order Workflow depend on Auth Service?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      {
+        "text": "Order Workflow depends on Auth Service",
+        "score": 0.94,
+        "metadata": {
+          "sourceRef": "static:workflow:order-workflow"
+        }
+      }
+    ]
+  }
+]

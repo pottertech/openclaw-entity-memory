@@ -59,3 +59,13 @@ Recommended first class:
 - outage impact reasoning
 
 Do not promote all relationship routing at once.
+
+## Real case pack requirement
+
+Promotion cannot be based only on synthetic fixtures.
+
+Use:
+- real incidents
+- real repos
+- real workflows
+- real ownership chains

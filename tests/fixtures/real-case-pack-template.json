@@ -1,0 +1,11 @@
+[
+  {
+    "name": "incident-template",
+    "question": "Was Project Atlas affected by Tuesday Outage?",
+    "expectedAnswer": "Yes",
+    "semanticCandidates": [
+      { "text": "Project Atlas depends on PostgreSQL Cluster", "score": 0.95 },
+      { "text": "PostgreSQL Cluster was affected by Tuesday Outage", "score": 0.94 }
+    ]
+  }
+]

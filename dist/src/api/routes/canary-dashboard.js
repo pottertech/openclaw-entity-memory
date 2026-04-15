@@ -79,3 +79,81 @@ export function createCanaryDashboardRouter(pool) {
     });
     return router;
 }
+export function createCanaryDashboardAlertsRouter(pool) {
+    const router = createRouter();
+    router.get("/canary-dashboard/outage-impact/alerts", async (req, res) => {
+        const tenantId = String(req.query.tenant_id ?? "").trim();
+        if (!tenantId) {
+            res.status(400).json({ error: "tenant_id is required" });
+            return;
+        }
+        const thresholdResponse = await pool.query(`
+        SELECT
+          COUNT(*)::int AS total,
+          SUM(
+            CASE WHEN comparison_json->>'preferred' = 'hybrid' THEN 1 ELSE 0 END
+          )::int AS preferred_hybrid,
+          SUM(
+            CASE WHEN comparison_json->>'sameAnswer' = 'true' THEN 1 ELSE 0 END
+          )::int AS same_answer_count
+        FROM shadow_audit
+        WHERE tenant_id = $1
+          AND query_class = 'outage_impact'
+        `, [tenantId]);
+        const exclusionResponse = await pool.query(`
+        SELECT
+          item->>'reason' AS reason,
+          COUNT(*)::int AS count
+        FROM query_audit qa,
+          LATERAL jsonb_array_elements(
+            COALESCE(qa.response_json->'explanation'->'exclusions', '[]'::jsonb)
+          ) item
+        WHERE qa.tenant_id = $1
+        GROUP BY item->>'reason'
+        ORDER BY count DESC
+        `, [tenantId]);
+        const row = thresholdResponse.rows[0] ?? {
+            total: 0,
+            preferred_hybrid: 0,
+            same_answer_count: 0,
+        };
+        const total = Number(row.total);
+        const hybridPreferenceRate = total > 0 ? Number(row.preferred_hybrid) / total : 0;
+        const sameAnswerRate = total > 0 ? Number(row.same_answer_count) / total : 0;
+        const alerts = [];
+        if (total >= 10 && sameAnswerRate < 0.8) {
+            alerts.push({
+                level: "warning",
+                reason: "same-answer rate below 0.80",
+            });
+        }
+        if (total >= 10 && hybridPreferenceRate < 0.6) {
+            alerts.push({
+                level: "warning",
+                reason: "hybrid preference rate below 0.60",
+            });
+        }
+        const exclusionRows = exclusionResponse.rows.map((item) => ({
+            reason: item.reason,
+            count: Number(item.count),
+        }));
+        const missingEvidence = exclusionRows.find((item) => item.reason === "missing_evidence");
+        if (missingEvidence && missingEvidence.count >= 5) {
+            alerts.push({
+                level: "action_required",
+                reason: "missing_evidence exclusions elevated",
+            });
+        }
+        res.json({
+            queryClass: "outage_impact",
+            alerts,
+            thresholdSnapshot: {
+                total,
+                hybridPreferenceRate,
+                sameAnswerRate,
+            },
+            exclusions: exclusionRows,
+        });
+    });
+    return router;
+}

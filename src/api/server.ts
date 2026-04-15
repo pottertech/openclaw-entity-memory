@@ -40,8 +40,11 @@ import { createShadowAuditRouter } from "./routes/shadow-audit.js";
 import { createInternalShadowAuditRouter } from "./routes/internal-shadow-audit.js";
 import { createShadowReportRouter } from "./routes/shadow-report.js";
 import { createCanaryDashboardRouter } from "./routes/canary-dashboard.js";
+import { createCanaryDashboardAlertsRouter } from "./routes/canary-dashboard.js";
 import { createCanaryTrendsRouter } from "./routes/canary-trends.js";
 import { createAlertHistoryRouter } from "./routes/alert-history.js";
+import { createSourceHealthRouter } from "./routes/source-health.js";
+import { createBackendCompareRouter } from "./routes/backend-compare.js";
 
 export async function createServer(config: AppConfig): Promise<Express> {
   const app = express();
@@ -125,8 +128,11 @@ export async function createServer(config: AppConfig): Promise<Express> {
   app.use("/v1", createInternalShadowAuditRouter(shadowAuditService));
   app.use("/v1", createShadowReportRouter(pool));
   app.use("/v1", createCanaryDashboardRouter(pool));
+  app.use("/v1", createCanaryDashboardAlertsRouter(pool));
   app.use("/v1", createCanaryTrendsRouter(pool));
   app.use("/v1", createAlertHistoryRouter(pool));
+  app.use("/v1", createSourceHealthRouter());
+  app.use("/v1", createBackendCompareRouter());
   app.use(
     "/v1",
     createQueryRouter(

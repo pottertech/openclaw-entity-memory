@@ -37,6 +37,13 @@ Choose one:
 - return to shadow only
 - rollback immediately
 
+## Additional weekly checks
+
+- source-health endpoint OK
+- alerts endpoint reviewed
+- trend endpoint reviewed
+- decision recorded for whether to keep, expand, or rollback
+
 ## Historical review
 
 Do not review only the latest snapshot.

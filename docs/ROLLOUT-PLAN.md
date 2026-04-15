@@ -76,9 +76,10 @@ Before limited active expands beyond shadow:
 - canary procedure approved
 - outage-impact cutover checklist reviewed
 
-## Stage 3.5 operationalization
+## Stage 4 expansion rule
 
-Before expanding canary:
-- automated refresh is running
-- dashboard endpoint is live
-- operator runbook exists
+Only consider a second query class after:
+- outage-impact canary is stable
+- source refresh health is stable
+- dashboard alerts are acceptable
+- weekly review process is established

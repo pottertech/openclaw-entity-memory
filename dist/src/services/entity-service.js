@@ -5,6 +5,22 @@ export class EntityService {
         this.entityRepository = entityRepository;
         this.aclService = aclService;
     }
+    async listEntities(tenantId, actor) {
+        const all = await this.entityRepository.listByTenant(tenantId);
+        const visible = [];
+        for (const entity of all) {
+            const canRead = await this.aclService.canReadEntity({
+                tenantId,
+                subjectType: actor?.subjectType,
+                subjectId: actor?.subjectId,
+                entityXid: entity.xid,
+            });
+            if (canRead) {
+                visible.push(entity);
+            }
+        }
+        return visible;
+    }
     async getEntity(tenantId, xid, actor) {
         const entity = await this.entityRepository.getByXid(tenantId, xid);
         if (!entity) {

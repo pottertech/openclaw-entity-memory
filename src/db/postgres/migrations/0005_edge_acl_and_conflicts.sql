@@ -32,15 +32,24 @@ ALTER TABLE edges
 ALTER TABLE edges
   ADD COLUMN IF NOT EXISTS last_observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
-ALTER TABLE edges
-  ADD CONSTRAINT edges_conflict_status_check CHECK (
+DO $$
+BEGIN
+  ALTER TABLE edges ADD CONSTRAINT edges_conflict_status_check CHECK (
     conflict_status IN ('active', 'superseded', 'conflicted', 'inactive')
-);
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_edges_conflict_key
   ON edges (tenant_id, conflict_key);
 
 CREATE INDEX IF NOT EXISTS idx_edges_conflict_status
   ON edges (tenant_id, conflict_status);
+
+ALTER TABLE edge_evidence
+  ADD COLUMN IF NOT EXISTS authority_tier TEXT NOT NULL DEFAULT 'standard';
+
+ALTER TABLE edge_evidence
+  ADD COLUMN IF NOT EXISTS last_observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 COMMIT;

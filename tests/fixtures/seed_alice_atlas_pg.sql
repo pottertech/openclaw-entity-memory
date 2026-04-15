@@ -68,13 +68,13 @@ ON CONFLICT (xid) DO NOTHING;
 
 -- ACL bindings for brodie agent
 INSERT INTO acl_bindings (
-  xid, tenant_id, subject_type, subject_id, resource_type, resource_id, permission
+  xid, tenant_id, subject_type, subject_id, resource_type, resource_id, permission, effect
 )
 VALUES
-  ('acl_1', 'tenant_default', 'agent', 'brodie', 'entity', 'usr_alice', 'read'),
-  ('acl_2', 'tenant_default', 'agent', 'brodie', 'entity', 'proj_atlas', 'read'),
-  ('acl_3', 'tenant_default', 'agent', 'brodie', 'entity', 'db_pg', 'read'),
-  ('acl_4', 'tenant_default', 'agent', 'brodie', 'entity', 'inc_tuesday', 'read')
+  ('acl_1', 'tenant_default', 'agent', 'brodie', 'entity', 'usr_alice', 'read', 'allow'),
+  ('acl_2', 'tenant_default', 'agent', 'brodie', 'entity', 'proj_atlas', 'read', 'allow'),
+  ('acl_3', 'tenant_default', 'agent', 'brodie', 'entity', 'db_pg', 'read', 'allow'),
+  ('acl_4', 'tenant_default', 'agent', 'brodie', 'entity', 'inc_tuesday', 'read', 'allow')
 ON CONFLICT (xid) DO NOTHING;
 
 -- Document ACL bindings

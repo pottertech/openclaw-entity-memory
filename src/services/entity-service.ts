@@ -8,6 +8,29 @@ export class EntityService {
     private readonly aclService: AclService,
   ) {}
 
+  async listEntities(
+    tenantId: string,
+    actor?: { subjectType?: string; subjectId?: string },
+  ): Promise<Entity[]> {
+    const all = await this.entityRepository.listByTenant(tenantId);
+    const visible: Entity[] = [];
+
+    for (const entity of all) {
+      const canRead = await this.aclService.canReadEntity({
+        tenantId,
+        subjectType: actor?.subjectType,
+        subjectId: actor?.subjectId,
+        entityXid: entity.xid,
+      });
+
+      if (canRead) {
+        visible.push(entity);
+      }
+    }
+
+    return visible;
+  }
+
   async getEntity(
     tenantId: string,
     xid: string,

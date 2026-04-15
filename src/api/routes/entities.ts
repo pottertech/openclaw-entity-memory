@@ -13,6 +13,19 @@ const ResolveQuerySchema = z.object({
 export function createEntityRouter(entityService: EntityService): Router {
   const router = createRouter();
 
+  router.get("/entities", async (_req: Request, res: Response) => {
+    const tenantId = String(_req.query.tenant_id ?? "").trim();
+
+
+    if (!tenantId) {
+      res.status(400).json({ error: "tenant_id is required" });
+      return;
+    }
+
+    const list = await entityService.listEntities(tenantId);
+    res.json({ entities: list });
+  });
+
   router.get("/entities/:xid", async (req: Request, res: Response) => {
     const tenantId = String(req.query.tenant_id ?? "").trim();
     const xid = String(req.params.xid ?? "").trim();

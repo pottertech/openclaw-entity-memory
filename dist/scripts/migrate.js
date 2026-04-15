@@ -10,10 +10,17 @@ async function main() {
     });
     await client.connect();
     try {
-        const migrationPath = path.resolve(process.cwd(), "src/db/postgres/migrations/0001_init_entity_memory.sql");
-        const sql = await fs.readFile(migrationPath, "utf8");
-        await client.query(sql);
-        console.log("migration applied");
+        const migrationsDir = path.resolve(process.cwd(), "src/db/postgres/migrations");
+        const files = await fs.readdir(migrationsDir);
+        const sorted = files
+            .filter((f) => f.endsWith(".sql"))
+            .sort();
+        for (const file of sorted) {
+            const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
+            await client.query(sql);
+            console.log(`applied: ${file}`);
+        }
+        console.log("all migrations applied");
     }
     finally {
         await client.end();

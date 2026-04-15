@@ -1,219 +1,285 @@
-# API
+# API Reference
 
-## Purpose
+Base URL: `http://localhost:4017/v1`
 
-This document defines the phase 1 API for openclaw-entity-memory.
+## Health
 
-All endpoints are internal service endpoints.
+### GET /v1/health
 
-## Conventions
+Returns service health status.
 
-- identifiers use XID-style strings where possible
-- all responses are JSON
-- all write endpoints are tenant-scoped
-- all query endpoints must support tenant filtering
-- timestamps use ISO-8601 UTC
+## Entities
 
-## GET /v1/health
+### GET /v1/entities/:xid
 
-Simple health check.
-
-Response:
-```json
-{ "ok": true }
-```
-
-## GET /v1/ready
-
-Dependency readiness check.
-
-Response:
-```json
-{ "ok": true, "postgres": "up", "graph_adapter": "up" }
-```
-
-## GET /v1/entities/:xid
-
-Return canonical entity by ID.
-
-Response:
-```json
-{
-  "entity": {
-    "xid": "ent_xxx",
-    "tenant_id": "tenant_default",
-    "entity_type": "Project",
-    "canonical_name": "Project Atlas",
-    "status": "active",
-    "created_at": "2026-04-15T00:00:00Z",
-    "updated_at": "2026-04-15T00:00:00Z"
-  }
-}
-```
-
-## GET /v1/entities/resolve?name=...
-
-Resolve alias or name to canonical entity.
-
-Response:
-```json
-{
-  "match": {
-    "xid": "ent_xxx",
-    "entity_type": "Datastore",
-    "canonical_name": "PostgreSQL Cluster",
-    "matched_alias": "postgres"
-  },
-  "confidence": 0.96
-}
-```
-
-## GET /v1/entities/:xid/neighbors
-
-Return connected edges and adjacent entities.
+Get entity by xid.
 
 Query params:
-- edge_type optional
-- depth optional, default 1
-- as_of optional timestamp
+- tenant_id required
+- actor_subject_type optional
+- actor_subject_id optional
 
-Response:
+### GET /v1/entities/resolve
+
+Resolve entity by name.
+
+Query params:
+- tenant_id required
+- name required
+- actor_subject_type optional
+- actor_subject_id optional
+
+### GET /v1/entities/:xid/neighbors
+
+Get entity neighbors.
+
+Query params:
+- tenant_id required
+- actor_subject_type optional
+- actor_subject_id optional
+
+## Ingest
+
+### POST /v1/ingest/entities
+
+Ingest entities batch.
+
+Body:
 ```json
 {
-  "center": { "xid": "ent_xxx", "canonical_name": "Project Atlas" },
-  "neighbors": [
+  "entities": [
     {
-      "edge_xid": "edge_xxx",
-      "edge_type": "DEPENDS_ON",
-      "direction": "out",
-      "entity": {
-        "xid": "ent_pg",
-        "entity_type": "Datastore",
-        "canonical_name": "PostgreSQL Cluster"
-      }
-    }
-  ]
-}
-```
-
-## POST /v1/query/path
-
-Find path between entities.
-
-Request:
-```json
-{
-  "tenantId": "tenant_default",
-  "from": { "name": "Alice" },
-  "to": { "name": "Tuesday Outage" },
-  "maxDepth": 4,
-  "asOf": "2026-04-15T00:00:00Z"
-}
-```
-
-Response:
-```json
-{
-  "found": true,
-  "path": [
-    { "from": "Alice", "edge": "LEADS", "to": "Project Atlas" },
-    { "from": "Project Atlas", "edge": "DEPENDS_ON", "to": "PostgreSQL Cluster" },
-    { "from": "PostgreSQL Cluster", "edge": "AFFECTED_BY", "to": "Tuesday Outage" }
-  ],
-  "evidence": [
-    { "edge_xid": "edge_1", "document_xid": "doc_1", "chunk_xid": "chk_1" },
-    { "edge_xid": "edge_2", "document_xid": "doc_2", "chunk_xid": "chk_8" },
-    { "edge_xid": "edge_3", "document_xid": "doc_3", "chunk_xid": "chk_4" }
-  ]
-}
-```
-
-## POST /v1/query/impact
-
-Return affected entities from a source entity or incident.
-
-Request:
-```json
-{
-  "tenantId": "tenant_default",
-  "source": { "name": "Tuesday Outage" },
-  "targetTypes": ["Project", "Workflow"],
-  "maxDepth": 3,
-  "asOf": "2026-04-15T00:00:00Z"
-}
-```
-
-Response:
-```json
-{
-  "source": { "xid": "inc_xxx", "canonical_name": "Tuesday Outage" },
-  "affected": [
-    {
-      "entity": { "xid": "proj_xxx", "entity_type": "Project", "canonical_name": "Project Atlas" },
-      "path": [
-        { "from": "Project Atlas", "edge": "DEPENDS_ON", "to": "PostgreSQL Cluster" },
-        { "from": "PostgreSQL Cluster", "edge": "AFFECTED_BY", "to": "Tuesday Outage" }
+      "xid": "entity_xid",
+      "tenantId": "tenant_id",
+      "entityType": "Project",
+      "canonicalName": "Project Name",
+      "status": "active",
+      "metadata": {},
+      "aliases": [
+        { "xid": "alias_1", "alias": "alias name", "aliasType": "name_variant" }
       ]
     }
   ]
 }
 ```
 
-## POST /v1/query/hybrid
+### POST /v1/ingest/edges
 
-Combine semantic candidates with entity resolution and graph traversal.
+Ingest edges batch with evidence.
 
-Request:
+Body:
+```json
+{
+  "edges": [
+    {
+      "xid": "edge_xid",
+      "tenantId": "tenant_id",
+      "edgeType": "DEPENDS_ON",
+      "fromEntityXid": "entity_a",
+      "toEntityXid": "entity_b",
+      "confidence": 0.95,
+      "validFrom": "2026-01-01T00:00:00Z",
+      "validTo": null,
+      "metadata": {},
+      "authorityTier": "standard",
+      "conflictKey": null,
+      "conflictStatus": "active",
+      "acl": [
+        {
+          "xid": "acl_1",
+          "subjectType": "agent",
+          "subjectId": "brodie",
+          "permission": "read",
+          "effect": "allow"
+        }
+      ],
+      "evidence": [
+        {
+          "xid": "ev_1",
+          "sourceRef": "doc:source",
+          "documentXid": "doc_1",
+          "chunkXid": "chk_1",
+          "evidenceSpan": {},
+          "confidence": 0.95,
+          "authorityTier": "standard"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Query
+
+### POST /v1/query/path
+
+Find path between two entities.
+
+Body:
+```json
+{
+  "tenantId": "tenant_default",
+  "from": { "name": "Alice" },
+  "to": { "name": "Tuesday Outage" },
+  "maxDepth": 4,
+  "asOf": "2026-04-15T00:00:00Z",
+  "actor": { "subjectType": "agent", "subjectId": "brodie" },
+  "minAuthorityTier": "standard"
+}
+```
+
+### POST /v1/query/hybrid
+
+Answer a natural-language relationship question.
+
+Body:
 ```json
 {
   "tenantId": "tenant_default",
   "question": "Was Alice's project affected by Tuesday's outage?",
   "semanticCandidates": [
-    {
-      "documentXid": "doc_1",
-      "chunkXid": "chk_1",
-      "text": "Alice is the tech lead on Project Atlas"
-    },
-    {
-      "documentXid": "doc_2",
-      "chunkXid": "chk_8",
-      "text": "Project Atlas uses PostgreSQL for its primary datastore"
-    },
-    {
-      "documentXid": "doc_3",
-      "chunkXid": "chk_4",
-      "text": "The PostgreSQL cluster went down on Tuesday"
-    }
+    { "text": "Alice is the tech lead on Project Atlas", "documentXid": "doc_1", "chunkXid": "chk_1" },
+    { "text": "Project Atlas uses PostgreSQL for its primary datastore", "documentXid": "doc_2", "chunkXid": "chk_8" },
+    { "text": "The PostgreSQL cluster went down on Tuesday", "documentXid": "doc_3", "chunkXid": "chk_4" }
   ],
-  "asOf": "2026-04-15T00:00:00Z"
+  "actor": { "subjectType": "agent", "subjectId": "brodie" },
+  "minAuthorityTier": "standard"
 }
 ```
+
+### POST /v1/query/impact
+
+Find all entities affected by a source through graph traversal.
+
+Body:
+```json
+{
+  "tenantId": "tenant_default",
+  "source": { "name": "Tuesday Outage" },
+  "targetTypes": ["Project"],
+  "maxDepth": 3,
+  "asOf": null,
+  "actor": { "subjectType": "agent", "subjectId": "brodie" },
+  "minAuthorityTier": "standard"
+}
+```
+
+## Audit
+
+### GET /v1/audit/queries
+
+Return recent query audit records.
+
+Query params:
+- tenant_id required
+- limit optional, default 25, max 100
 
 Response:
 ```json
 {
-  "answer": "Yes",
-  "confidence": "high",
-  "entities": [
-    { "xid": "usr_alice", "entity_type": "User", "canonical_name": "Alice" },
-    { "xid": "proj_atlas", "entity_type": "Project", "canonical_name": "Project Atlas" },
-    { "xid": "db_pg", "entity_type": "Datastore", "canonical_name": "PostgreSQL Cluster" },
-    { "xid": "inc_tuesday", "entity_type": "Incident", "canonical_name": "Tuesday Outage" }
-  ],
-  "path": [
-    { "from": "Alice", "edge": "LEADS", "to": "Project Atlas" },
-    { "from": "Project Atlas", "edge": "DEPENDS_ON", "to": "PostgreSQL Cluster" },
-    { "from": "PostgreSQL Cluster", "edge": "AFFECTED_BY", "to": "Tuesday Outage" }
-  ],
-  "evidence": [
-    { "documentXid": "doc_1", "chunkXid": "chk_1" },
-    { "documentXid": "doc_2", "chunkXid": "chk_8" },
-    { "documentXid": "doc_3", "chunkXid": "chk_4" }
-  ],
-  "filtersApplied": {
-    "tenantId": "tenant_default",
-    "acl": true,
-    "asOf": "2026-04-15T00:00:00Z"
+  "queries": [
+    {
+      "xid": "qa_xxx",
+      "tenantId": "tenant_default",
+      "queryType": "hybrid",
+      "queryText": "Was Alice's project affected by Tuesday's outage?",
+      "requestJson": {},
+      "responseJson": {},
+      "status": "ok",
+      "durationMs": 14,
+      "createdAt": "2026-04-15T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Provenance
+
+### GET /v1/provenance/edges/:edgeXid
+
+Return visible provenance for an edge.
+
+Query params:
+- tenant_id required
+- actor_subject_type optional
+- actor_subject_id optional
+
+Response:
+```json
+{
+  "provenance": [],
+  "exclusions": []
+}
+```
+
+### GET /v1/provenance/entities/:entityXid/neighborhood
+
+Return edge neighborhood around an entity.
+
+Query params:
+- tenant_id required
+
+Response:
+```json
+{
+  "neighborhood": []
+}
+```
+
+## Review
+
+### GET /v1/review/conflicts
+
+Return edges participating in conflict groups.
+
+Query params:
+- tenant_id required
+- conflict_key optional
+- limit optional
+
+Response:
+```json
+{
+  "conflicts": []
+}
+```
+
+## Query Explanation
+
+Both hybrid and impact responses include an explanation field:
+
+```json
+{
+  "explanation": {
+    "exclusions": [
+      {
+        "kind": "edge",
+        "id": "edge_secret_1",
+        "reason": "edge_acl_deny",
+        "detail": "edge_acl_deny"
+      },
+      {
+        "kind": "entity",
+        "id": "entity_hidden",
+        "reason": "entity_acl_denied"
+      },
+      {
+        "kind": "document",
+        "id": "doc_confidential",
+        "reason": "document_acl_denied"
+      }
+    ]
   }
 }
 ```
+
+Exclusion reasons:
+- entity_acl_denied
+- edge_acl_deny
+- document_acl_denied
+- authority_below_threshold
+- temporal_window_excluded
+- conflict_loser
+- missing_entity
+- missing_evidence
+- unknown

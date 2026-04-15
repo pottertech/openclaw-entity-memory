@@ -1,0 +1,88 @@
+[
+  {
+    "name": "alice-atlas-postgres-outage",
+    "queryType": "hybrid",
+    "question": "Was Alice's project affected by Tuesday's outage?",
+    "semanticCandidates": [
+      { "text": "Alice is the tech lead on Project Atlas", "documentXid": "doc_1", "chunkXid": "chk_1" },
+      { "text": "Project Atlas uses PostgreSQL for its primary datastore", "documentXid": "doc_2", "chunkXid": "chk_8" },
+      { "text": "The PostgreSQL cluster went down on Tuesday", "documentXid": "doc_3", "chunkXid": "chk_4" }
+    ],
+    "expectAnswer": "Yes"
+  },
+  {
+    "name": "impact-outage-projects",
+    "queryType": "impact",
+    "source": { "name": "Tuesday Outage" },
+    "targetTypes": ["Project"],
+    "expectContainsEntity": "Project Atlas"
+  },
+  {
+    "name": "impact-outage-datastores",
+    "queryType": "impact",
+    "source": { "name": "Tuesday Outage" },
+    "targetTypes": ["Datastore"],
+    "expectContainsEntity": "PostgreSQL Cluster"
+  },
+  {
+    "name": "hybrid-atlas-postgres-link",
+    "queryType": "hybrid",
+    "question": "Does Project Atlas depend on PostgreSQL Cluster?",
+    "semanticCandidates": [
+      { "text": "Project Atlas uses PostgreSQL for its primary datastore" }
+    ],
+    "expectAnswer": "Yes"
+  },
+  {
+    "name": "hybrid-alice-outage-link",
+    "queryType": "hybrid",
+    "question": "Is Alice connected to Tuesday Outage?",
+    "semanticCandidates": [
+      { "text": "Alice is the tech lead on Project Atlas" },
+      { "text": "The PostgreSQL cluster went down on Tuesday" }
+    ],
+    "expectAnswer": "Yes"
+  },
+  {
+    "name": "impact-no-user-target",
+    "queryType": "impact",
+    "source": { "name": "Tuesday Outage" },
+    "targetTypes": ["User"],
+    "expectContainsEntity": "Alice"
+  },
+  {
+    "name": "hybrid-postgres-outage",
+    "queryType": "hybrid",
+    "question": "Was PostgreSQL Cluster affected by Tuesday Outage?",
+    "semanticCandidates": [
+      { "text": "The PostgreSQL cluster went down on Tuesday" }
+    ],
+    "expectAnswer": "Yes"
+  },
+  {
+    "name": "hybrid-project-incident",
+    "queryType": "hybrid",
+    "question": "Is Project Atlas connected to Tuesday Outage?",
+    "semanticCandidates": [
+      { "text": "Project Atlas uses PostgreSQL for its primary datastore" },
+      { "text": "The PostgreSQL cluster went down on Tuesday" }
+    ],
+    "expectAnswer": "Yes"
+  },
+  {
+    "name": "impact-outage-all",
+    "queryType": "impact",
+    "source": { "name": "Tuesday Outage" },
+    "targetTypes": [],
+    "expectContainsEntity": "Project Atlas"
+  },
+  {
+    "name": "hybrid-tech-lead-project",
+    "queryType": "hybrid",
+    "question": "Does Alice lead Project Atlas?",
+    "semanticCandidates": [
+      { "text": "Alice is the tech lead on Project Atlas" }
+    ],
+    "expectAnswer": "Yes"
+  }
+]

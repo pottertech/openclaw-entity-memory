@@ -1,0 +1,109 @@
+import { DefaultSemanticBridge } from "../query/semantic-bridge.js";
+const CAPITALIZED_PHRASE_REGEX = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b/g;
+export class HybridQueryService {
+    entityService;
+    traversalService;
+    edgeRepository;
+    authorityService;
+    provenanceService;
+    semanticBridge = new DefaultSemanticBridge();
+    constructor(entityService, traversalService, edgeRepository, authorityService, provenanceService) {
+        this.entityService = entityService;
+        this.traversalService = traversalService;
+        this.edgeRepository = edgeRepository;
+        this.authorityService = authorityService;
+        this.provenanceService = provenanceService;
+    }
+    async query(request) {
+        const minAuthorityRank = await this.authorityService.getMinimumRank(request.minAuthorityTier);
+        const normalizedCandidates = this.semanticBridge.normalizeCandidates(request.semanticCandidates.map((item) => ({
+            documentXid: item.documentXid,
+            chunkXid: item.chunkXid,
+            text: item.text,
+        })));
+        const candidateNames = this.extractCandidateNames(request.question, normalizedCandidates.map((item) => item.text));
+        const resolved = [];
+        for (const candidate of candidateNames) {
+            const match = await this.entityService.resolveEntity(request.tenantId, candidate, request.actor);
+            if (!match) {
+                continue;
+            }
+            if (!resolved.some((item) => item.xid === match.match.xid)) {
+                resolved.push({
+                    xid: match.match.xid,
+                    entityType: match.match.entityType,
+                    canonicalName: match.match.canonicalName,
+                });
+            }
+        }
+        let bestPath = null;
+        for (let i = 0; i < resolved.length; i += 1) {
+            for (let j = i + 1; j < resolved.length; j += 1) {
+                const path = await this.traversalService.findPathByResolvedIds({
+                    tenantId: request.tenantId,
+                    fromXid: resolved[i].xid,
+                    toXid: resolved[j].xid,
+                    maxDepth: 4,
+                    asOf: request.asOf,
+                    minAuthorityRank,
+                    actor: request.actor,
+                });
+                if (path && (!bestPath || path.length > bestPath.length)) {
+                    bestPath = path;
+                }
+            }
+        }
+        const evidence = [];
+        const explanationExclusions = [...this.traversalService.getExplanations()];
+        if (bestPath) {
+            for (const hop of bestPath) {
+                const visible = await this.provenanceService.getVisibleEdgeProvenance({
+                    tenantId: request.tenantId,
+                    edgeXid: hop.edgeXid,
+                    actor: request.actor,
+                });
+                for (const ev of visible.provenance) {
+                    evidence.push({
+                        edgeXid: hop.edgeXid,
+                        documentXid: ev.documentXid,
+                        chunkXid: ev.chunkXid,
+                    });
+                }
+                explanationExclusions.push(...visible.exclusions);
+            }
+        }
+        return {
+            answer: bestPath ? "Yes" : "No clear relationship path found",
+            confidence: bestPath ? "high" : "low",
+            entities: resolved,
+            path: (bestPath ?? []).map((hop) => ({
+                from: hop.from,
+                edge: hop.edge,
+                to: hop.to,
+            })),
+            evidence,
+            filtersApplied: {
+                tenantId: request.tenantId,
+                acl: true,
+                asOf: request.asOf ?? null,
+                minAuthorityTier: request.minAuthorityTier ?? null,
+            },
+            explanation: {
+                exclusions: explanationExclusions,
+            },
+        };
+    }
+    extractCandidateNames(question, candidateTexts) {
+        const results = new Set();
+        for (const text of [question, ...candidateTexts]) {
+            const matches = text.match(CAPITALIZED_PHRASE_REGEX) ?? [];
+            for (const match of matches) {
+                const trimmed = match.trim();
+                if (trimmed.length >= 2) {
+                    results.add(trimmed);
+                }
+            }
+        }
+        return [...results];
+    }
+}

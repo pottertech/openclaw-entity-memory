@@ -1,62 +1,108 @@
-# Promotion Confirmation — openclaw-entity-memory
+# PROMOTION-CONFIRMATION.md
 
-**Date:** 2026-04-16T00:54Z
-**Environment:** development (localhost:4017)
+## Promotion status
 
-## Status
+Outage-impact hybrid memory is live in promoted posture.
 
-Outage-impact hybrid memory has been promoted to production-supported use.
+## Effective scope
 
-## Scope
+Promotion applies only to:
 
-- **Query class:** outage-impact only
-- **Routing:** hybrid path active for outage-impact questions
-- **Non-outage questions:** remain semantic-authoritative (blocked by routing boundary)
+- outage-impact queries
 
-## Runtime posture
+Examples:
+- Was Alice's project affected by Tuesday's outage?
+- Which projects were affected by the Postgres outage?
+- Which workflows were affected by the failed service?
+
+Promotion does not apply to:
+
+- general dependency reasoning
+- policy linkage
+- customer exposure
+- workflow lineage outside outage-impact framing
+- any second query class
+
+## Verification summary
+
+The following issues were found and fixed during verification before confirming promotion:
+
+1. The limited-active router was not wired into the live query flow.
+   - Routing decisions existed in the adapter layer.
+   - `/query/hybrid` was going directly to the hybrid query service.
+   - Fix: `decideLimitedActiveRouting()` now runs before hybrid execution.
+
+2. Boolean environment variables were parsed incorrectly.
+   - The prior parsing behavior treated the string `"false"` as truthy.
+   - Fix: replaced boolean coercion with explicit string comparison logic.
+
+3. `semanticCandidates` was required on the hybrid query schema.
+   - This blocked valid outage-impact queries without explicit semantic context.
+   - Fix: made `semanticCandidates` optional.
+
+4. Monitoring endpoints were verified live.
+   - Confirmed:
+     - shadow-audit
+     - canary-dashboard
+     - thresholds
+     - source-health
+     - alerts
+     - dashboard summary
+
+## Live posture
+
+Current runtime posture:
 
 - `ENABLE_OUTAGE_IMPACT_ACTIVE=true`
 - `ENTITY_MEMORY_ROLLBACK_ENABLED=false`
 
-## Verification results
+## Runtime confirmation
 
-| Control | Result |
-|---------|--------|
-| Rollback config (default posture blocks hybrid) | ✅ Pass |
-| Routing boundary (non-outage → semantic only) | ✅ Pass |
-| Shadow audit writes | ✅ Pass |
-| Shadow audit read | ✅ Pass |
-| Shadow-audit summary / dashboard | ✅ Pass |
-| Canary dashboard | ✅ Pass |
-| Threshold endpoint | ✅ Pass |
-| Source-health endpoint | ✅ Pass |
-| Alert summary endpoint | ✅ Pass |
-| Alert history endpoint | ✅ Pass |
-| Health check | ✅ Pass |
-| rollback-drill.test.ts | ✅ Pass |
-| outage-impact-production-gate.test.ts | ✅ Pass |
-| Promoted posture routes outage-impact to hybrid | ✅ Pass |
-| Promoted posture still blocks non-outage | ✅ Pass |
-| Shadow audit writes in promoted posture | ✅ Pass |
-| Dashboard live in promoted posture | ✅ Pass |
-| Rollback path (flip back to semantic-authoritative) | ✅ Pass |
+Confirmed behavior:
 
-**Total: 18/18 passing**
+- outage-impact question → hybrid path
+- non-outage question → semantic path
+- routing boundary enforced
+- monitoring live
+- rollback path remains config-driven
 
-## Controls remaining in force
+## Service status
 
-- Semantic comparison logging: active
-- Shadow audit: active
-- Dashboard: active
-- Threshold monitoring: active
-- Source-health: active
-- Alert monitoring: active
-- Rollback: config-driven (set `ENABLE_OUTAGE_IMPACT_ACTIVE=false` + `ENTITY_MEMORY_ROLLBACK_ENABLED=true`)
+- service running on port 4017
+- promotion posture confirmed active
 
-## Next review date
+## Controls still in force
 
-**2026-04-23** (one week from promotion)
+The following controls remain active after promotion:
+
+- semantic comparison logging remains active
+- shadow audit remains active
+- dashboard remains active
+- threshold and alert review remain active
+- source-health remains reviewable
+- rollback remains config-driven
+- no second query class is approved
+
+## Rollback rule
+
+If any of the following occur, revert immediately:
+
+- false positives
+- ACL or evidence visibility concerns
+- unstable exclusions
+- source-health degradation
+- unexpected routing behavior
+- operator confidence degradation
+
+Rollback settings:
+
+- `ENABLE_OUTAGE_IMPACT_ACTIVE=false`
+- `ENTITY_MEMORY_ROLLBACK_ENABLED=true`
+
+## Review date
+
+- next review: 2026-04-23
 
 ## Expansion rule
 
-No second query class until outage-impact remains stable through at least one full review cycle and expansion is explicitly approved per POST-CANARY-DECISION.md.
+Do not expand to a second query class before the next review and an explicit approval decision.

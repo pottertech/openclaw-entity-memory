@@ -15,7 +15,7 @@ export type HybridSemanticCandidate = {
 export type HybridQueryRequest = {
   tenantId: string;
   question: string;
-  semanticCandidates: HybridSemanticCandidate[];
+  semanticCandidates?: HybridSemanticCandidate[];
   asOf?: string;
 };
 

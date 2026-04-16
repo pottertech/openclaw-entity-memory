@@ -1,3 +1,4 @@
+import { decideLimitedActiveRouting } from "../../adapters/limited-active-router.js";
 import { Router as createRouter } from "express";
 import { z } from "zod";
 const PathQuerySchema = z.object({
@@ -27,7 +28,7 @@ const HybridQuerySchema = z.object({
         documentXid: z.string().optional(),
         chunkXid: z.string().optional(),
         text: z.string().min(1),
-    })),
+    })).optional(),
     asOf: z.string().optional(),
     actor: z
         .object({
@@ -54,7 +55,7 @@ const ImpactQuerySchema = z.object({
         .optional(),
     minAuthorityTier: z.string().optional(),
 });
-export function createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService) {
+export function createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService, config) {
     const router = createRouter();
     router.post("/query/path", async (req, res) => {
         const started = Date.now();
@@ -153,6 +154,40 @@ export function createQueryRouter(entityService, traversalService, hybridQuerySe
             return;
         }
         try {
+            const routing = decideLimitedActiveRouting({
+                question: parsed.data.question,
+                enableOutageImpactActive: config.enableOutageImpactActive,
+                rollbackEnabled: config.entityMemoryRollbackEnabled,
+            });
+            if (!routing.active) {
+                const responseJson = {
+                    answer: null,
+                    confidence: "low",
+                    path: [],
+                    entities: [],
+                    evidence: [],
+                    explanation: {
+                        chosenPath: routing.chosenPath,
+                        queryClass: routing.queryClass,
+                        reason: routing.reason,
+                    },
+                    _meta: {
+                        routingDecision: routing,
+                        note: "semantic path not yet wired — hybrid returned in shadow mode",
+                    },
+                };
+                await queryAuditService.record({
+                    tenantId: parsed.data.tenantId,
+                    queryType: "hybrid",
+                    queryText: parsed.data.question,
+                    requestJson: { ...parsed.data, _routing: routing },
+                    responseJson: responseJson,
+                    status: "ok",
+                    durationMs: Date.now() - started,
+                });
+                res.json(responseJson);
+                return;
+            }
             const result = await hybridQueryService.query(parsed.data);
             await queryAuditService.record({
                 tenantId: parsed.data.tenantId,

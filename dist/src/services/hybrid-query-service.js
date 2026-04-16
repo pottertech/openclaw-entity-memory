@@ -18,7 +18,7 @@ export class HybridQueryService {
     }
     async query(request) {
         const minAuthorityRank = await this.authorityService.getMinimumRank(request.minAuthorityTier);
-        const normalizedCandidates = this.semanticBridge.normalizeCandidates(request.semanticCandidates.map((item) => ({
+        const normalizedCandidates = this.semanticBridge.normalizeCandidates((request.semanticCandidates ?? []).map((item) => ({
             documentXid: item.documentXid,
             chunkXid: item.chunkXid,
             text: item.text,

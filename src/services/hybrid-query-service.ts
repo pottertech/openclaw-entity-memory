@@ -65,7 +65,7 @@ export class HybridQueryService {
     );
 
     const normalizedCandidates = this.semanticBridge.normalizeCandidates(
-      request.semanticCandidates.map((item) => ({
+      (request.semanticCandidates ?? []).map((item) => ({
         documentXid: item.documentXid,
         chunkXid: item.chunkXid,
         text: item.text,

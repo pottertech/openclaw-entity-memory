@@ -141,6 +141,7 @@ export async function createServer(config: AppConfig): Promise<Express> {
       hybridQueryService,
       impactQueryService,
       queryAuditService,
+      config,
     ),
   );
 

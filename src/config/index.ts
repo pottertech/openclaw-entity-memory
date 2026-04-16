@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const BoolFromString = (defaults: boolean) =>
+  z.preprocess(
+    (v) => String(v ?? "") === "true",
+    z.boolean().default(defaults),
+  );
+
 const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4017),
   DATABASE_URL: z.string().min(1),
@@ -8,8 +14,8 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.string().default("info"),
   GRAPH_BACKEND: z.string().default("in-memory"),
   GRAPH_MAX_PATHS: z.coerce.number().int().positive().default(5),
-  ENABLE_OUTAGE_IMPACT_ACTIVE: z.coerce.boolean().default(false),
-  ENTITY_MEMORY_ROLLBACK_ENABLED: z.coerce.boolean().default(true),
+  ENABLE_OUTAGE_IMPACT_ACTIVE: BoolFromString(false),
+  ENTITY_MEMORY_ROLLBACK_ENABLED: BoolFromString(true),
 });
 
 export type AppConfig = {

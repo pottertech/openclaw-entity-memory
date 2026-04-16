@@ -90,7 +90,7 @@ export async function createServer(config) {
     app.use("/v1", createAlertHistoryRouter(pool));
     app.use("/v1", createSourceHealthRouter());
     app.use("/v1", createBackendCompareRouter());
-    app.use("/v1", createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService));
+    app.use("/v1", createQueryRouter(entityService, traversalService, hybridQueryService, impactQueryService, queryAuditService, config));
     app.use((err, _req, res, _next) => {
         res.status(500).json({
             error: "internal_server_error",

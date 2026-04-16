@@ -1,3 +1,5 @@
+import { decideLimitedActiveRouting } from "../../adapters/limited-active-router.js";
+import type { AppConfig } from "../../config/index.js";
 import type { Request, Response, Router } from "express";
 import { Router as createRouter } from "express";
 import { z } from "zod";
@@ -37,7 +39,7 @@ const HybridQuerySchema = z.object({
       chunkXid: z.string().optional(),
       text: z.string().min(1),
     }),
-  ),
+  ).optional(),
   asOf: z.string().optional(),
   actor: z
     .object({
@@ -72,6 +74,7 @@ export function createQueryRouter(
   hybridQueryService: HybridQueryService,
   impactQueryService: ImpactQueryService,
   queryAuditService: QueryAuditService,
+  config: AppConfig,
 ): Router {
   const router = createRouter();
 
@@ -199,6 +202,45 @@ export function createQueryRouter(
     }
 
     try {
+      const routing = decideLimitedActiveRouting({
+        question: parsed.data.question,
+        enableOutageImpactActive: config.enableOutageImpactActive,
+        rollbackEnabled: config.entityMemoryRollbackEnabled,
+      });
+
+      if (!routing.active) {
+        const responseJson = {
+          answer: null,
+          confidence: "low" as const,
+          path: [],
+          entities: [],
+          evidence: [],
+          explanation: {
+            chosenPath: routing.chosenPath,
+            queryClass: routing.queryClass,
+            reason: routing.reason,
+          },
+          _meta: {
+            routingDecision: routing,
+            note: "semantic path not yet wired — hybrid returned in shadow mode",
+          },
+        };
+
+
+        await queryAuditService.record({
+          tenantId: parsed.data.tenantId,
+          queryType: "hybrid",
+          queryText: parsed.data.question,
+          requestJson: { ...parsed.data, _routing: routing },
+          responseJson: responseJson,
+          status: "ok",
+          durationMs: Date.now() - started,
+        });
+
+        res.json(responseJson);
+        return;
+      }
+
       const result = await hybridQueryService.query(parsed.data);
 
       await queryAuditService.record({
